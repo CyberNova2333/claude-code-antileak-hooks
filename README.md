@@ -26,8 +26,8 @@ hooks/
   forbid-push.sh     # git … push: 拦推向 Agent 分支(含 `push -u origin claude/x` 形态) + --no-verify
   forbid-read-secret.sh  # 拦"读 token/打 token 到会话"(提醒级)
   forbid-tamper.sh   # (新增, 可选) 拦改 core.hooksPath/disableAllHooks/删改护栏目录与 settings.json
-  refresh-private.py # 私有仓并集: 种子(owners/private/patterns) + gh + 环境变量 GH_TOKEN_n，owner 覆盖校验，原子写缓存
-  resolve-private.py # R1 补充: 对缓存里没有的 xxx-xxx 裸名 / 已知 owner 下的 owner/repo 单名查询(由 check.py --net 调用; 负缓存 24h)
+  refresh-private.py # 私有仓并集: 种子(owners/private/patterns) + gh + 环境变量 GH_TOKEN_n + CNB 平台(policy.cnb_token_file 或 CNB_TOKEN)，owner 覆盖校验，原子写缓存
+  resolve-private.py # R1 补充: 对缓存里没有的 xxx-xxx 裸名 / 已知 owner 下的 owner/repo 单名查询(由 check.py --net 调用; 负缓存 24h)。只问 refresh 成功过的来源(缓存 sources)
   scan-repo.py       # 存量审计(HEAD 树 + 全历史消息；--scan-history 全历史树)；R1 同样读动态缓存
 hooks/git/           # Git 层强制执行(只调 check.py)
   pre-commit / pre-merge-commit / commit-msg / pre-push
