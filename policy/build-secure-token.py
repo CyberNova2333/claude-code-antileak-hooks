@@ -15,10 +15,15 @@ pairs = pattern.findall(raw)
 
 # 取所有非空项(含 GH_TOKEN_* 与 PKG_URL_DEFAULT 这类 CDN URL)
 nonempty = [(n, v) for (n, v) in pairs if v]
-# 兜底:即使 cpp 里没写 PKG_URL_DEFAULT 槽,也强制注入(公开产物 URL,非密钥)
-DEFAULT_PKG_URL = "https://github.com/CyberNova2333/claude-code-antileak-hooks/releases/download/guardrails-rev4/guardrails-rev4-package.zip"
-if not any(n == "PKG_URL_DEFAULT" for n, _ in nonempty):
+# 公开产物 URL(非密钥)。构建时从环境变量 GUARD_PKG_URL 注入,**不写死在包里**——
+# 写死会把发布地址(含私有仓名)带进随包分发的文件:既破坏「包内不含私有仓名、可放 CDN」的前提,
+# 又会触发护栏自身的 R1(提交里含私有仓名 → pre-commit 拦截,等于包无法被提交进任何仓库)。
+# 未设置该变量时只是不注入 PKG_URL_DEFAULT(部署侧仍可用 HOOK_PACKAGE_URL 显式指定),不算构建失败。
+DEFAULT_PKG_URL = os.environ.get("GUARD_PKG_URL", "").strip()
+if DEFAULT_PKG_URL and not any(n == "PKG_URL_DEFAULT" for n, _ in nonempty):
     nonempty.append(("PKG_URL_DEFAULT", DEFAULT_PKG_URL))
+elif not DEFAULT_PKG_URL and not any(n == "PKG_URL_DEFAULT" for n, _ in nonempty):
+    print("NOTE: 未设置 GUARD_PKG_URL，未注入 PKG_URL_DEFAULT（部署时可用 HOOK_PACKAGE_URL 指定）")
 if not any(n.upper().startswith("GH_") for n, _ in nonempty):
     print("NO_TOKENS_EXTRACTED")
     sys.exit(1)
