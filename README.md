@@ -69,6 +69,19 @@ settings.json        # 本机 CLI 用的 Claude Code hooks 示例(env 已脱敏)
 13. 删除 check.py 里无人调用的 `tokens()/get_token()`；commit 模式先剥 `core.commentChar` 注释行。
 14. **按你的决定**：R4 业务标识全部出包进种子；R5 = 禁推一切 Agent 分支、不做 main/强推保护；#8 resolve-private 接入(xxx-xxx 形态)；#10-1 pre-push 扫新提交内容(cherry-pick/rebase/am/合并/--no-verify 进来的内容在这里兜底，实测)；#10-2 TTL 6h + Claude hook 路径永不联网(过期直接 ERROR 并给出刷新命令)；R6 改为 check-novalidate 验签 + 签名指引文案(policy.signing_instructions)；R7 去掉变量名匹配、补 `sk-proj-/sk-ant-/ghu_/ghr_/glpat/npm_`；R2 补漏的型号；token 只从环境变量 `GH_TOKEN_n` 读(不再调用 token-helper get)。
 
+## rev4.1 相对 rev4 的改动
+
+15. **补上 Read/Grep 的凭据读取缺口（rev4 实测发现）**：`forbid-read-secret.sh` 只解析 Bash 的
+    `tool_input.command`，而 Claude 的 Read / Grep 工具走 `tool_input.file_path` / `tool_input.path`。
+    于是同一个动作换个工具就绕过：`cat /root/.claude/settings.json` 被拦，`Read /root/.claude/settings.json` 放行。
+    新增 `hooks/forbid-read-path.sh` + matcher `Read|Grep` 补齐这一半。
+    * **必须是新文件名**：`install-settings.py` 的去重按**脚本文件名**判定，复用
+      `forbid-read-secret.sh` 会被判「已装」而跳过注入，缺口照旧。
+    * 覆盖 Read 与 Grep（两者都能把文件**内容**带回会话）；**Glob 不覆盖**——它只回文件名不回内容。
+    * 路径先 `realpath` 归一化再匹配，防 `../` 与软链绕过；白名单放行 `*.pub` / `known_hosts` /
+      `.ssh/config` / `authorized_keys`，避免 rev4 改动 11 反对的那类过度拦截。
+    * `_lib.sh` **未改动**（新 hook 自带 JSON 解析，不调用只认 `command` 的 `get_cmd()`），影响面仅限新增文件。
+
 ## 部署(两边都用 bootstrap.sh，装出来的目录结构完全一致：`/root/.claude/guardrails/`)
 ### 云端：Anthropic 云端 → Environment → Setup Script
 1. 把 `policy/bootstrap.sh` 整段粘进 Setup Script，改第一处 `PKG_URL_DEFAULT` 为 CDN 上的包地址(zip/tgz 均可)。
