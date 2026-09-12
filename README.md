@@ -82,6 +82,14 @@ settings.json        # 本机 CLI 用的 Claude Code hooks 示例(env 已脱敏)
       `.ssh/config` / `authorized_keys`，避免 rev4 改动 11 反对的那类过度拦截。
     * `_lib.sh` **未改动**（新 hook 自带 JSON 解析，不调用只认 `command` 的 `get_cmd()`），影响面仅限新增文件。
 
+16. **私有仓名出包（rev4 漏网）**：`policy/token-helper.cpp` 与 `policy/build-secure-token.py` 里各硬编码了一次发布地址
+    `https://github.com/<owner>/<repo>/releases/download/...`，而该仓是**私有**的。
+    后果有两个，rev4 都没覆盖到：
+    * 破坏「包内不含私有仓名、可放 CDN」的前提——真发到 CDN 就泄露了；doctor 只检查 `policy.json` 一项，查不到这里。
+    * **自指死结**：护栏自己的 R1 会拦住任何把新版包提交进仓库的提交（`私有仓名: <本仓名>`），
+      导致各仓 vendor 的 `guardrails/` 从引入该 URL 起就**再也同步不了**。
+    改法：URL 不再写死，构建时由 `build-secure-token.py` 从环境变量 `GUARD_PKG_URL` 注入；未设置则只是不导出该项。
+
 ## 部署(两边都用 bootstrap.sh，装出来的目录结构完全一致：`/root/.claude/guardrails/`)
 ### 云端：Anthropic 云端 → Environment → Setup Script
 1. 把 `policy/bootstrap.sh` 整段粘进 Setup Script，改第一处 `PKG_URL_DEFAULT` 为 CDN 上的包地址(zip/tgz 均可)。
@@ -95,6 +103,8 @@ settings.json        # 本机 CLI 用的 Claude Code hooks 示例(env 已脱敏)
 HOOK_PACKAGE_URL=file:///sdcard/guardrails-rev4-package.zip bash bootstrap.sh     # 再跑一次 = 升级(种子/映射/缓存保留)
 cp private-seed.json sanitize-map.json /root/.claude/guardrails/ && chmod 600 /root/.claude/guardrails/{private-seed.json,sanitize-map.json}
 g++ -O2 -o /root/.claude/guardrails/token-helper policy/token-helper.cpp   # 先手填 token；chmod 700；由它把 GH_TOKEN_1..N 写进 Claude Code 的环境
+# 产物 URL 不写死在包里：构建时用 GUARD_PKG_URL 注入（build-secure-token.py 读它）；不设则只是不导出 PKG_URL_DEFAULT
+#   例：GUARD_PKG_URL=https://<你的发布地址>/guardrails-rev4-package.zip python3 policy/build-secure-token.py policy/token-helper.cpp /tmp/gen.cpp
 apt-get install -y openssh-client                                            # ssh-keygen 是 R6 验签的硬依赖
 python3 /root/.claude/guardrails/hooks/refresh-private.py && python3 /root/.claude/guardrails/policy/doctor.py
 ```

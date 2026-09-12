@@ -21,6 +21,6 @@ static const Token TOKENS[] = {
   {"GH_TOKEN_2", ""},   // 所有者2
   {"GH_TOKEN_3", ""},   // 所有者3
   {"GH_TOKEN",   ""},   // 兜底(可选)
-  {"PKG_URL_DEFAULT", "https://github.com/CyberNova2333/claude-code-antileak-hooks/releases/download/guardrails-rev4/guardrails-rev4-package.zip"},
+  {"PKG_URL_DEFAULT", ""},   // 公开产物 URL；构建时由 build-secure-token.py 从 $GUARD_PKG_URL 注入，不在此写死
   {nullptr, nullptr}
 };
