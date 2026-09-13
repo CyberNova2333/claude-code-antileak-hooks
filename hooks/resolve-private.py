@@ -102,6 +102,8 @@ def cnb_api(group_path, repo, tok):
                                                   'User-Agent': 'resolve-private'})
             with urllib.request.urlopen(req, timeout=PER_CALL_TIMEOUT) as resp:
                 d = json.load(resp)
+                if not isinstance(d, dict) or not ('visibility_level' in d or 'visibility' in d):
+                    return 'skip'          # 同一路径也可能是子组织(响应没有 visibility_level)：组织名不是仓名，不算私有仓
                 vis = str(d.get('visibility_level') or d.get('visibility') or '')
                 return 'public' if vis.lower() == 'public' else 'private'
         except urllib.error.HTTPError as e:
