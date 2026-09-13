@@ -22,6 +22,11 @@
 #     `ssh-keygen -Y check-novalidate` 做密码学验签并取出签名密钥指纹(git 的 %G?/%GK 没有 allowedSigners 时全是空)。
 #   * push 模式也扫新提交的**内容**(新增行)：cherry-pick/rebase/am/合并/--no-verify 进来的内容在这里兜底。
 #   * R1 补充(--net)：缓存里没有的 xxx-xxx 裸名交给 resolve-private.py 单名查询；未知名过多时改为整体 refresh 一次再比。
+# rev4.2 变更:
+#   * push 模式的"重签豁免"：待推提交的 patch-id(--stable)若等于远端已有某提交的 patch-id，
+#     说明内容改动逐字节等于远端本来就有的，只是换了签名/committer/父提交——不再重扫其新增行；
+#     消息、签名、作者/提交者邮箱照查。远端"已有"以 --net 下 ls-remote 的真实顶点为准(本地 refs/remotes 可被伪造)，
+#     无网络退回本地跟踪 ref。算不出 patch-id 就退化为全扫，绝不因此放行。policy.resign_exempt=false 可整体关闭。
 import sys, os, json, re, subprocess, time, tempfile
 
 POLICY_PATH = '/root/.claude/policy/policy.json'
@@ -305,8 +310,13 @@ def cmd_commit(msgfile=None, cwd=None):
     return PASS, []
 
 
-def new_commits(lsha, rsha, remote, cwd):
-    """要审的提交 = 本地要推的 tip 减去远端已有的。优先用远端跟踪分支排除(覆盖新分支/远端 SHA 本地不可见)。"""
+def new_commits(lsha, rsha, remote, cwd, tips=()):
+    """要审的提交 = 本地要推的 tip 减去远端已有的。rev4.2：优先按远端真实顶点(ls-remote)排除；
+    其次远端跟踪分支(覆盖新分支/远端 SHA 本地不可见)。"""
+    if tips:
+        ok, out = git(['rev-list', lsha, '--not', *tips], cwd, 300)
+        if ok:
+            return out.splitlines()
     if remote:
         ok, out = git(['rev-list', lsha, '--not', '--remotes=' + remote], cwd, 300)
         if ok:
@@ -317,6 +327,61 @@ def new_commits(lsha, rsha, remote, cwd):
             return out.splitlines()
     ok, out = git(['rev-list', lsha], cwd, 300)          # 兜底: 全量(保守)
     return out.splitlines() if ok else None
+
+
+def remote_tips(remote, cwd):
+    """远端真实的 ref 顶点。--net 时问远端本身(ls-remote)，本地 refs/remotes/* 是可以被随手 update-ref 伪造的；
+    无网络时退回本地跟踪 ref。只保留本地已有的对象(算 patch-id 要读得到)。"""
+    shas = []
+    if NET:
+        ok, out = git(['ls-remote', '--heads', '--tags', remote], cwd, 120)
+        if ok:
+            shas = [l.split()[0] for l in out.splitlines() if l.strip() and not l.endswith('^{}')]
+    if not shas:
+        ok, out = git(['for-each-ref', '--format=%(objectname)', 'refs/remotes/' + remote], cwd, 30)
+        shas = out.split() if ok else []
+    have = []
+    for s in shas:
+        ok, _ = git(['cat-file', '-e', s + '^{commit}'], cwd, 10)
+        if ok:
+            have.append(s)
+    return have
+
+
+def patch_ids(revs_args, cwd):
+    """{commit: patch-id}。--stable：行号无关、与 hunk 顺序无关，父提交/签名/committer 都不参与。
+    (git 2.43 的 --stable 与 --verbatim 互斥；默认忽略空白差异——空白加不出任何泄露内容，可接受。)"""
+    try:
+        log = subprocess.run(['git', 'log', '-p', '--no-color', '--format=commit %H', *revs_args],
+                             cwd=cwd, capture_output=True, timeout=600)
+        if log.returncode != 0:
+            return None
+        pid = subprocess.run(['git', 'patch-id', '--stable'], cwd=cwd, input=log.stdout,
+                             capture_output=True, timeout=600)
+        if pid.returncode != 0:
+            return None
+    except Exception:
+        return None
+    out = {}
+    for l in pid.stdout.decode('utf-8', 'replace').splitlines():
+        parts = l.split()
+        if len(parts) == 2:
+            out[parts[1]] = parts[0]
+    return out
+
+
+def known_content(tips, lsha, cwd):
+    """重签豁免(rev4.2)：待推提交若 patch-id 与远端已有某个提交完全一致，说明它的内容改动逐字节等于
+    远端本来就有的东西——只是换了签名/committer/父提交(重签、rebase、cherry-pick 原样搬运)。这种提交
+    不再重扫新增行(消息、签名、作者邮箱照查)。返回 (远端 patch-id 集合, 待推提交->patch-id)；
+    任一侧算不出来则返回 (set(), {})，即退化为全部照扫，绝不因此放行。"""
+    if not tips:
+        return set(), {}
+    known = patch_ids([*tips], cwd)
+    mine = patch_ids([lsha, '--not', *tips], cwd)
+    if known is None or mine is None:
+        return set(), {}
+    return set(known.values()), mine
 
 
 def cmd_push(remote=None, cwd=None):
@@ -331,9 +396,11 @@ def cmd_push(remote=None, cwd=None):
                 return VIOLATION, ['R5: 禁止推送到 Agent 分支 %s。请用中性分支名(或按约定直推 main)。' % rref]
         if lsha == ZERO:
             continue                                      # 删除远端分支
-        commits = new_commits(lsha, rsha, remote, cwd)
+        tips = remote_tips(remote, cwd) if remote else []
+        commits = new_commits(lsha, rsha, remote, cwd, tips)
         if commits is None:
             return ERROR, ['无法枚举待推送提交(git rev-list 失败)']
+        known_pids, my_pids = known_content(tips, lsha, cwd) if POLICY.get('resign_exempt', True) else (set(), {})
         for c in commits:
             c = c.strip()
             if not c:
@@ -358,6 +425,8 @@ def cmd_push(remote=None, cwd=None):
                 return res, ['提交 %s: %s' % (c[:9], ' '.join(note[:4]))]
             if is_provider(ae) or is_provider(ce):
                 return VIOLATION, ['提交作者/提交者是 Agent noreply: ' + c[:9]]
+            if my_pids.get(c) and my_pids[c] in known_pids:
+                continue                                  # 内容与远端已有提交逐字节相同(纯重签/换父)，不算新内容
             ok, added = added_lines(c, cwd)
             if not ok:
                 return ERROR, ['无法读取提交 %s 的内容差异' % c[:9]]
