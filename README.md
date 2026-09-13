@@ -122,3 +122,7 @@ python3 /root/.claude/guardrails/hooks/refresh-private.py && python3 /root/.clau
 - 云端：Environment Setup Script = bootstrap.sh；Claude 层走仓库级 `.claude/settings.json`(幂等、去重、未跟踪即 exclude)；名单来源 = `GH_TOKEN_n` + `GUARD_SEED_B64`。`expected_owners` 因此不需要填(种子里的 owners 就是覆盖声明)。
 - 护栏目录/`settings.json` 写入不再豁免，和普通文件一样扫(含规则词的 README 会被拦)。
 - 放行 = 不表态，本机恢复正常权限弹窗；Claude hooks 不联网(缓存过期直接拦并给刷新命令；未知裸名只在 git 层查)。
+
+## rev4.2 相对 rev4.1 的改动
+1. **pre-push 重签豁免**：待推提交的 patch-id(`git patch-id --stable`)若等于远端已有某个提交的 patch-id，说明它的内容改动逐字节等于远端本来就有的，只是换了签名 / committer / 父提交（整仓 SSH 重签、rebase、原样 cherry-pick）——这种提交不再重扫新增行；**消息、签名、作者/提交者邮箱照查**。背景：迁移到新平台后整仓重签，重写后的历史对远端而言全是"新提交"，历史上早已放行的旧内容会被今天的规则整体重审而永久卡死。
+2. **远端"已有"不再只信本地 `refs/remotes/*`**：`--net` 下以 `git ls-remote` 拿到的真实顶点为准（本地跟踪 ref 一条 `update-ref` 就能伪造成"远端已有"，rev4 的 `--not --remotes=` 也有此问题，一并改为优先用真实顶点）；无网络退回本地跟踪 ref。patch-id 算不出来就退化为全扫，绝不因此放行。`policy.resign_exempt=false` 可整体关闭豁免。
