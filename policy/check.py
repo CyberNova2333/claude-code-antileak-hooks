@@ -71,10 +71,28 @@ def mask(s):
     return s
 
 
+RX_B64CHAR = re.compile(r'[A-Za-z0-9+/]')
+
+
+def in_b64_run(text, a, b, minlen=24):
+    """命中 [a,b) 是否整个落在一段 ≥minlen、无分隔符、大小写与数字混杂的 base64 形态串里
+    (JSON 里内嵌的图片/音频等编码数据)。真实型号名不会有 24 个以上连续字母数字且没有任何分隔符。
+    只用于 R2 型号/会话规则；R7 凭据规则不走这里(凭据本身就是这种形态)。"""
+    i, j = a, b
+    while i > 0 and RX_B64CHAR.match(text[i - 1]):
+        i -= 1
+    while j < len(text) and RX_B64CHAR.match(text[j]):
+        j += 1
+    run = text[i:j]
+    return len(run) >= minlen and bool(re.search(r'[a-z]', run) and re.search(r'[A-Z]', run) and re.search(r'[0-9]', run))
+
+
 def scan(text):
     """R2/R4/R7: 静态正则(不含私有仓名)。"""
     hits = set()
     for m in FORBIDDEN.finditer(text):
+        if in_b64_run(text, m.start(), m.end()):
+            continue
         hits.add(mask(m.group(0)))
     for r in SECRETS:
         for m in r.finditer(text):
@@ -348,40 +366,74 @@ def remote_tips(remote, cwd):
     return have
 
 
-def patch_ids(revs_args, cwd):
-    """{commit: patch-id}。--stable：行号无关、与 hunk 顺序无关，父提交/签名/committer 都不参与。
-    (git 2.43 的 --stable 与 --verbatim 互斥；默认忽略空白差异——空白加不出任何泄露内容，可接受。)"""
-    try:
-        log = subprocess.run(['git', 'log', '-p', '--no-color', '--format=commit %H', *revs_args],
-                             cwd=cwd, capture_output=True, timeout=600)
-        if log.returncode != 0:
-            return None
-        pid = subprocess.run(['git', 'patch-id', '--stable'], cwd=cwd, input=log.stdout,
-                             capture_output=True, timeout=600)
-        if pid.returncode != 0:
-            return None
-    except Exception:
+def commit_index(revs_args, cwd):
+    """{sha: (tree, parents, author_time)}。只读提交头，不碰 blob——远端历史就算缺 blob(部分克隆/不完整镜像)也能算。"""
+    ok, out = git(['log', '--format=%H %T %at %P', *revs_args], cwd, 300)
+    if not ok:
         return None
-    out = {}
-    for l in pid.stdout.decode('utf-8', 'replace').splitlines():
-        parts = l.split()
-        if len(parts) == 2:
-            out[parts[1]] = parts[0]
-    return out
+    idx = {}
+    for l in out.splitlines():
+        p = l.split()
+        if len(p) >= 3:
+            idx[p[0]] = (p[1], tuple(p[3:]), p[2])
+    return idx
+
+
+def patch_id(sha, cwd, cache):
+    """单个提交的 patch-id(--stable：与行号/hunk 顺序无关；默认忽略空白——空白加不出泄露内容)。
+    合并提交按 -m 对每个父分别比。算不出(缺 blob 等) => None，只影响这一个提交。"""
+    if sha in cache:
+        return cache[sha]
+    pid = None
+    try:
+        d = subprocess.run(['git', 'diff-tree', '-r', '-m', '-p', '--no-color', sha], cwd=cwd, capture_output=True, timeout=300)
+        if d.returncode == 0 and d.stdout.strip():
+            r = subprocess.run(['git', 'patch-id', '--stable'], cwd=cwd, input=d.stdout, capture_output=True, timeout=300)
+            if r.returncode == 0 and r.stdout.split():
+                pid = r.stdout.split()[0].decode('ascii', 'replace')
+    except Exception:
+        pid = None
+    cache[sha] = pid
+    return pid
 
 
 def known_content(tips, lsha, cwd):
-    """重签豁免(rev4.2)：待推提交若 patch-id 与远端已有某个提交完全一致，说明它的内容改动逐字节等于
-    远端本来就有的东西——只是换了签名/committer/父提交(重签、rebase、cherry-pick 原样搬运)。这种提交
-    不再重扫新增行(消息、签名、作者邮箱照查)。返回 (远端 patch-id 集合, 待推提交->patch-id)；
-    任一侧算不出来则返回 (set(), {})，即退化为全部照扫，绝不因此放行。"""
-    if not tips:
-        return set(), {}
-    known = patch_ids([*tips], cwd)
-    mine = patch_ids([lsha, '--not', *tips], cwd)
-    if known is None or mine is None:
-        return set(), {}
-    return set(known.values()), mine
+    """重签豁免(rev4.2)：待推提交若与远端已有某个提交"内容改动完全相同"，说明只是换了签名/committer/父提交
+    (整仓重签、rebase、原样 cherry-pick)——这种提交不再重扫新增行(消息、签名、作者/提交者邮箱照查)。
+    判定二选一，任一成立即豁免：
+      a) 树签名相同：(tree, 各父提交的 tree) 逐一相等 => diff 必然相同，且完全不用读 blob；
+      b) patch-id 相同：只对作者时间相同的远端候选逐个算(diff-tree)，单个算不出就不豁免该提交。
+    返回豁免的待推提交集合；任何环节失败都只是"不豁免"，绝不因此放行。"""
+    if not tips or not POLICY.get('resign_exempt', True):
+        return set()
+    remote = commit_index([*tips], cwd)
+    mine = commit_index([lsha, '--not', *tips], cwd)
+    if not remote or not mine:
+        return set()
+    tree_of = {s: v[0] for s, v in remote.items()}
+    tree_of.update({s: v[0] for s, v in mine.items()})
+
+    def sig(tree, parents):
+        pts = tuple(tree_of.get(p) for p in parents)
+        return None if None in pts else (tree, pts)
+    rsigs, by_time = set(), {}
+    for s, (tree, parents, at) in remote.items():
+        g = sig(tree, parents)
+        if g:
+            rsigs.add(g)
+        by_time.setdefault(at, []).append(s)
+    cache, exempt = {}, set()
+    for s, (tree, parents, at) in mine.items():
+        g = sig(tree, parents)
+        if g and g in rsigs:
+            exempt.add(s); continue
+        cands = by_time.get(at, [])
+        if not cands:
+            continue
+        mp = patch_id(s, cwd, cache)
+        if mp and any(patch_id(c, cwd, cache) == mp for c in cands):
+            exempt.add(s)
+    return exempt
 
 
 def cmd_push(remote=None, cwd=None):
@@ -400,7 +452,7 @@ def cmd_push(remote=None, cwd=None):
         commits = new_commits(lsha, rsha, remote, cwd, tips)
         if commits is None:
             return ERROR, ['无法枚举待推送提交(git rev-list 失败)']
-        known_pids, my_pids = known_content(tips, lsha, cwd) if POLICY.get('resign_exempt', True) else (set(), {})
+        exempt = known_content(tips, lsha, cwd)
         for c in commits:
             c = c.strip()
             if not c:
@@ -425,8 +477,8 @@ def cmd_push(remote=None, cwd=None):
                 return res, ['提交 %s: %s' % (c[:9], ' '.join(note[:4]))]
             if is_provider(ae) or is_provider(ce):
                 return VIOLATION, ['提交作者/提交者是 Agent noreply: ' + c[:9]]
-            if my_pids.get(c) and my_pids[c] in known_pids:
-                continue                                  # 内容与远端已有提交逐字节相同(纯重签/换父)，不算新内容
+            if c in exempt:
+                continue                                  # 内容改动与远端已有提交完全相同(纯重签/换父)，不算新内容
             ok, added = added_lines(c, cwd)
             if not ok:
                 return ERROR, ['无法读取提交 %s 的内容差异' % c[:9]]
