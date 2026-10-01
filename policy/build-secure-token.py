@@ -3,6 +3,11 @@
 # 做 XOR 流式加密,产出「只有密文」的新 cpp 交给交叉 g++ 编译。全程不打印任何 token 值。
 # 用法: python3 build-secure-token.py <填好token的cpp> <输出cpp> [--- 其余参数给 C]
 import re, os, secrets, sys
+# 中文 Windows / GBK 区域设置下 Python 默认按本地编码读写标准流：统一走 UTF-8，
+# 否则读到的中文会乱码或抛错（抛错多半落进 fail-open 分支），输出 ✘ 等字符也会崩。
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_s, 'reconfigure'):
+        _s.reconfigure(encoding='utf-8', errors='replace')
 
 SRC = sys.argv[1]
 OUT = sys.argv[2]
