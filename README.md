@@ -128,3 +128,9 @@ python3 /root/.claude/guardrails/hooks/refresh-private.py && python3 /root/.clau
 2. **远端"已有"不再只信本地 `refs/remotes/*`**：`--net` 下以 `git ls-remote` 拿到的真实顶点为准（本地跟踪 ref 一条 `update-ref` 就能伪造成"远端已有"，rev4 的 `--not --remotes=` 也有此问题，一并改为优先用真实顶点）；无网络退回本地跟踪 ref（git 钩子总是带 `--net`）。
 3. **R2 型号规则跳过 base64 编码串**：命中若整个落在一段 ≥24 字符、无分隔符、大小写与数字混杂的串里（JSON 内嵌的图片/音频数据），视为编码数据不算命中。真实型号名从不会有 24 个以上连续字母数字且没有任何分隔符——带连字符/点号的长型号名照样命中。R7 凭据规则不走这条。
 4. **R7 的 Google API key 形态收紧为固定 39 位**（`AIza` + 35 位，前后不能再接同类字符）：原 `{30,}` 会把 base64 里任意 `AIza…` 片段整段吞掉。
+
+## rev4.3 相对 rev4.2 的改动
+1. **中文 Windows / GBK 区域设置下的编码问题**：Python 在这类环境里默认按本地编码（GBK）读写标准流、`open()` 与子进程输出，而 git、gh、Claude Code 给的都是 UTF-8。后果是读到的中文乱码或直接抛 `UnicodeDecodeError`——不少调用点把异常当成「查不到」处理，于是**静默放行**；输出 `✘` 等 GBK 里没有的字符则直接崩溃。实测：内联 `json.load(open(policy.json))` 在 GBK 环境下抛错，`pre-commit` 随即退回兜底值，签名指纹变成空串。修法分三层：
+   - 所有 shell 入口（`_lib.sh`、`commit-msg` / `pre-commit` / `pre-push`、`bootstrap.sh`）导出 `PYTHONUTF8=1`，内联 `python3 -c` 一并生效；
+   - 每个 Python 入口脚本启动时把 stdin / stdout / stderr 统一设为 UTF-8，父子进程之间的管道两端编码一致；
+   - `subprocess.run(text=True)` 一律显式 `encoding='utf-8', errors='replace'`，`open()` 显式 `encoding='utf-8'`——脚本被单独运行时也不依赖环境变量。

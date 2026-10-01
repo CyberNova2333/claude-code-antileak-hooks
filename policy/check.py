@@ -28,6 +28,11 @@
 #     消息、签名、作者/提交者邮箱照查。远端"已有"以 --net 下 ls-remote 的真实顶点为准(本地 refs/remotes 可被伪造)，
 #     无网络退回本地跟踪 ref。算不出 patch-id 就退化为全扫，绝不因此放行。policy.resign_exempt=false 可整体关闭。
 import sys, os, json, re, subprocess, time, tempfile
+# 中文 Windows / GBK 区域设置下 Python 默认按本地编码读写标准流：统一走 UTF-8，
+# 否则读到的中文会乱码或抛错（抛错多半落进 fail-open 分支），输出 ✘ 等字符也会崩。
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    if hasattr(_s, 'reconfigure'):
+        _s.reconfigure(encoding='utf-8', errors='replace')
 
 POLICY_PATH = '/root/.claude/policy/policy.json'
 POLICY = json.load(open(POLICY_PATH, encoding='utf-8'))
@@ -219,7 +224,7 @@ def resolve_unknown(text, d, priv):
         hits = [p for p in priv2 - priv if p and p in low]
         return (VIOLATION, ['私有仓名(刷新后新增): ' + hits[0]]) if hits else (PASS, [])
     try:
-        r = subprocess.run([sys.executable, RESOLVE, *cands], capture_output=True, text=True, timeout=120)
+        r = subprocess.run([sys.executable, RESOLVE, *cands], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
         res = json.loads(r.stdout.strip() or '{}')
     except Exception as e:
         return ERROR, ['resolve-private 调用失败(%s)' % type(e).__name__]
@@ -244,7 +249,7 @@ def full_check(text):
 def git(args, cwd=None, timeout=60):
     """返回 (ok, stdout)。任何异常都算失败，交给调用方保守处理。"""
     try:
-        r = subprocess.run(['git', *args], capture_output=True, text=True, timeout=timeout, cwd=cwd)
+        r = subprocess.run(['git', *args], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, cwd=cwd)
         return r.returncode == 0, r.stdout
     except Exception:
         return False, ''
