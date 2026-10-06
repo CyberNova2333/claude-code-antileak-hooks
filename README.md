@@ -18,6 +18,20 @@
 
 ## 🏛️ 系统结构
 
+```mermaid
+flowchart TD
+    Calls["Agent 工具调用"] --> Hooks["hooks/ · 工具层拦截"]
+    Git["提交、合并与推送"] --> GitHooks["hooks/git/ · Git 钩子"]
+    Hooks --> Check["policy/check.py · 规则判定"]
+    GitHooks --> Check
+    Policy["部署侧策略与私有种子"] --> Check
+    Sources["已配置的名单来源"] --> Refresh["refresh-private.py · 刷新"]
+    Refresh --> Cache["本地名单缓存"]
+    Cache --> Check
+    Check --> Result["放行 / 拦截 / 错误说明"]
+    Doctor["doctor.py · 安装自检"] -. 核验配置 .-> Policy
+```
+
 | 路径 | 职责 |
 |---|---|
 | `policy/policy.json` | 规则配置与路径声明 |
