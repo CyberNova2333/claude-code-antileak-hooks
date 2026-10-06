@@ -10,38 +10,52 @@
 
 **阅读导航**
 
-[🏛️ 系统结构](#section-1) · [🚀 快速开始](#section-2) · [⚙️ 检查范围](#section-3) · [📚 维护与许可](#section-4) · [🧪 验证与故障定位](#section-5)
+[🏛️ 分层代码架构](#section-1) · [🚀 快速开始](#section-2) · [⚙️ 检查范围](#section-3) · [📚 维护与许可](#section-4) · [🧪 验证与故障定位](#section-5)
 
 ---
 
 <a id="section-1"></a>
 
-## 🏛️ 系统结构
+## 🏛️ 分层代码架构
+
+工具钩子与 Git 钩子是不同入口，共用 Python 策略判定。规则引擎读取部署策略和名单缓存，并在需要时通过独立刷新或查询脚本补充依据；安装脚本只负责接入，不属于判定核心。
+
+图中展示主要代码依赖：实线箭头指向被调用或被依赖的模块，虚线表示实现或生成关系；数据读写另用连线文字标明。
 
 ```mermaid
-flowchart TD
-    Calls["Agent 工具调用"] --> Hooks["hooks/ · 工具层拦截"]
-    Git["提交、合并与推送"] --> GitHooks["hooks/git/ · Git 钩子"]
-    Hooks --> Check["policy/check.py · 规则判定"]
-    GitHooks --> Check
-    Policy["部署侧策略与私有种子"] --> Check
-    Sources["已配置的名单来源"] --> Refresh["refresh-private.py · 刷新"]
-    Refresh --> Cache["本地名单缓存"]
-    Cache --> Check
-    Check --> Result["放行 / 拦截 / 错误说明"]
-    Doctor["doctor.py · 安装自检"] -. 核验配置 .-> Policy
+flowchart TB
+    subgraph L0["事件适配层"]
+        TOOLS["hooks · 工具事件包装"]
+        GIT["hooks/git · Git 事件包装"]
+    end
+    subgraph L1["策略与检查层"]
+        CHECK["policy/check.py"]
+        SCAN["scan-repo.py"]
+    end
+    subgraph L2["策略数据与来源适配"]
+        POLICY["policy.json / 私有缓存"]
+        REFRESH["refresh-private.py"]
+        RESOLVE["resolve-private.py"]
+    end
+    TOOLS --> CHECK
+    GIT --> CHECK
+    CHECK --> POLICY
+    SCAN --> POLICY
+    CHECK --> REFRESH
+    CHECK --> RESOLVE
+    REFRESH --> POLICY
+    RESOLVE --> POLICY
 ```
 
-| 路径 | 职责 |
-|---|---|
-| `policy/policy.json` | 规则配置与路径声明 |
-| `policy/check.py` | 内容、提交、推送三个检查入口 |
-| `hooks/` | 工具调用检查、私有仓库名单刷新与存量扫描 |
-| `hooks/git/` | Git 提交、合并及推送钩子 |
-| `policy/bootstrap.sh` | 安装、路径配置与钩子接入 |
-| `policy/doctor.py` | 安装状态与配置自检 |
-
-私有仓库名单由 CNB、可选 GitHub 来源和本机种子汇总，业务标识与凭据保存在部署环境。公共分发包只包含规则和实现。
+| 层次 | 源码入口 | 职责与边界 |
+|---|---|---|
+| 事件适配层 | [hooks · 工具事件包装](hooks/) | 将 Agent 工具参数交给对应检查；包含 shell 包装与公共辅助。 |
+| 事件适配层 | [hooks/git · Git 事件包装](hooks/git/) | 转交提交、合并和推送参数。 |
+| 策略与检查层 | [policy/check.py](policy/check.py) | content、commit、push 入口共享内容扫描、身份和签名等判据。 |
+| 策略与检查层 | [scan-repo.py](hooks/scan-repo.py) | 独立存量扫描入口，按策略遍历仓库内容。 |
+| 策略数据与来源适配 | [policy.json / 私有缓存](policy/policy.json) | 声明规则、脚本位置和缓存路径；实际私有数据由部署侧提供。 |
+| 策略数据与来源适配 | [refresh-private.py](hooks/refresh-private.py) | 聚合配置过的来源并更新名单。 |
+| 策略数据与来源适配 | [resolve-private.py](hooks/resolve-private.py) | 解析缓存外的候选名称，返回可见性或错误。 |
 
 <a id="-快速开始"></a>
 
