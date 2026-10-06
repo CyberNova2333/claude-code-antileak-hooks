@@ -1,144 +1,84 @@
-# 守卫「防犯蠢」护栏系统 — rev4
+# Claude Code Antileak Hooks 🛡️
 
-> 定位：**防 Agent 犯蠢/漏/误操作**，不是防恶意 Agent 的安全边界（Agent 是 root，任何本机护栏都能被它绕开）。
-> 原则：**守卫自身判断失败 = Fail closed**。Claude hooks 层 = 快速提醒；Git hooks 层 = 本机强制。
-> 说明：包内 `GH_TOKEN`/`ghp_`/`github_pat_` 等是**检测规则/占位符**，非真实密钥。`token-helper.cpp` 的 value 均为空。
->
-> **rev4 最重要的变化：本包不再含任何私有仓库名、业务域名或内部标识。** R1(私有仓名) 和 R4(业务标识正则) 全部走
-> `private-repos.json` 动态缓存；来源 = CNB 平台(主来源：令牌文件或环境变量 `CNB_TOKEN`) + 可选的 GitHub(环境变量 `GH_TOKEN_1..N`
-> 与 gh，只在仍有私有仓托管在 GitHub 时才需要) + 本机私有种子(owners/private/patterns)；令牌由 token-helper ELF 写进环境。**本包可以放 CDN；`local-only/` 里的两个文件不可以。**
+> **用于 Agent 协作与 Git 提交的内容检查、署名和签名护栏。**
 
-## 结构
+[部署与规则](docs/OPERATIONS.md) · [变更记录](docs/CHANGELOG.md) · [GPLv3](LICENSE)
 
+通过 Claude Code hooks 提前提示，通过 Git hooks 检查实际提交与推送。它用于减少误操作和意外泄露；拥有本机控制权的进程仍能绕过本机检查。
+
+<a id="-系统结构"></a>
+
+**阅读导航**
+
+[🏛️ 系统结构](#section-1) · [🚀 快速开始](#section-2) · [⚙️ 检查范围](#section-3) · [📚 维护与许可](#section-4) · [🧪 验证与故障定位](#section-5)
+
+---
+
+<a id="section-1"></a>
+
+## 🏛️ 系统结构
+
+| 路径 | 职责 |
+|---|---|
+| `policy/policy.json` | 规则配置与路径声明 |
+| `policy/check.py` | 内容、提交、推送三个检查入口 |
+| `hooks/` | 工具调用检查、私有仓库名单刷新与存量扫描 |
+| `hooks/git/` | Git 提交、合并及推送钩子 |
+| `policy/bootstrap.sh` | 安装、路径配置与钩子接入 |
+| `policy/doctor.py` | 安装状态与配置自检 |
+
+私有仓库名单由 CNB、可选 GitHub 来源和本机种子汇总，业务标识与凭据保存在部署环境。公共分发包只包含规则和实现。
+
+<a id="-快速开始"></a>
+
+<a id="section-2"></a>
+
+## 🚀 快速开始
+
+运行环境为 Bash、Python 3、Git 和 OpenSSH。先按 [部署参考](docs/OPERATIONS.md) 配置名单来源、本机种子与安装路径，再使用 `policy/bootstrap.sh` 安装。
+
+安装后可先运行只读检查：
+
+```sh
+python3 policy/doctor.py
 ```
-policy/
-  policy.json        # 规则单一来源: 静态正则(R2 型号/会话) + secret 正则(R7) + agent_branch_prefixes(R5) + 指纹/签名指引(R6) + 作者邮箱(R3) + 各路径 + expected_owners
-  check.py           # 引擎: content / commit / push 三模式, 三态 pass|violation|error；三模式都做 R1(动态)。--net 才联网(git 钩子/scan-repo 传)
-  doctor.py          # 一键自检(路径按自身位置推导，bootstrap 搬家后仍可用)
-  install-settings.py# 幂等注入 settings.json(用户级，或 <repo>/.claude/settings.json 仓库级)：5 个 PreToolUse + SessionStart + attribution.sessionUrl=false
-  bootstrap.sh       # 铺设脚本 = Anthropic 云端 Environment 的 Setup Script，本机也用它装(见「部署」)
-  msgcb-hygiene.py   # filter-repo --message-callback body(消息中性化；映射表读本机 sanitize-map.json)
-  token-helper.cpp   # token 焊入 ELF 模板(填值后 g++ 编译；产物只放本机)。唯一职责：把 CNB_TOKEN / GH_TOKEN_n 写进环境，护栏本身只读环境变量
-hooks/
-  _lib.sh            # 五个 Claude hook 共用: 放行=不表态(exit 0 无输出), 拦截=deny JSON + exit 2
-  forbid-content.sh  # Write|Edit|NotebookEdit: 拦新内容(content/new_string/new_source)
-  forbid-commit.sh   # git … commit: 拦消息/作者 + 拦 --no-verify/-n/--no-gpg-sign/改 hooksPath/gpgsign
-  forbid-push.sh     # git … push: 拦推向 Agent 分支(含 `push -u origin claude/x` 形态) + --no-verify
-  forbid-read-secret.sh  # 拦"读 token/打 token 到会话"(提醒级)
-  forbid-tamper.sh   # (新增, 可选) 拦改 core.hooksPath/disableAllHooks/删改护栏目录与 settings.json
-  refresh-private.py # 私有仓并集: 种子(owners/private/patterns) + CNB 平台(主来源: policy.cnb_token_file 或 CNB_TOKEN) + 可选的 GitHub(GH_TOKEN_n、gh)，owner 覆盖校验，原子写缓存
-  resolve-private.py # R1 补充: 对缓存里没有的 xxx-xxx 裸名 / 已知 owner 下的 owner/repo 单名查询(由 check.py --net 调用; 负缓存 24h)。只问 refresh 成功过的来源(缓存 sources)
-  scan-repo.py       # 存量审计(HEAD 树 + 全历史消息；--scan-history 全历史树)；R1 同样读动态缓存
-hooks/git/           # Git 层强制执行(只调 check.py)
-  pre-commit / pre-merge-commit / commit-msg / pre-push
-settings.json        # 本机 CLI 用的 Claude Code hooks 示例(env 已脱敏)
-```
 
-不随包分发、只放本机(`local-only/`)；bootstrap 装完后的位置是 `$GUARD`(默认 `/root/.claude/guardrails/`)：
-- `$GUARD/private-seed.json`(云端：环境变量 `GUARD_SEED_B64`) —— `{"owners":[…], "private":["Owner/repo", …], "patterns":["业务标识正则", …]}`：
-  离线兜底 + 声明哪些 owner 必须被覆盖 + R4 业务标识(域名/内部流水线名)正则。
-- `$GUARD/sanitize-map.json` —— msgcb-hygiene.py 的 名字→中性名 映射。
-- token-helper 编译产物(含 token)——把 `CNB_TOKEN` 与可选的 `GH_TOKEN_1..N` 写进 Claude Code / 钩子的运行环境；云端直接在 Environment 环境变量里配。
+详细安装命令、云端与本机的区别、名单刷新方式见 [部署与规则](docs/OPERATIONS.md)。不要把本机名单、凭据或带凭据的辅助程序打进分发包。
 
-## 规则 R1–R7
-- **R1** 私有仓名：来自 `private-repos.json`(`Owner/repo` 与裸名两种形态；裸名为子串匹配，设计如此)。缓存缺失/损坏/过期 → **ERROR → 拦**：git 钩子(`--net`)会先就地刷新一次，Claude hooks 不联网、直接让 Agent 跑 `refresh-private.py`。
-  补充(`--net`)：缓存里没有、但长得像仓名的裸名(`xxx-xxx`，≥6 字符、至少一段含 2 个字母、后面不跟 `:`) 与 已知 owner 下的 `owner/repo`，交给 `resolve-private.py` 逐个问 refresh 成功过的平台(CNB / GitHub)：private → 拦；public/不存在 → 放；查不到(无令牌/网络) → ERROR。候选超过 `resolve_budget`(30) 时不逐个查，改为整体 refresh 一次再按新名单比。`Co-authored-by` 等 trailer 键与 `pre-commit` 等常见词在 `resolve_ignore` 里忽略。
-- **R2** 具体型号与会话标识：完整清单见 `policy/policy.json` 的 `forbidden_patterns`（随包分发，不含私密信息）。此处不逐字列举——包若含禁词举例，会被自己的规则拦住提交。
-  形态上有误伤(英文里的同类句式)——按约定提交信息全中文，不处理；注意这些正则也作用于文件内容。
-- **R3** 作者/提交者不得是 Agent 提供商 noreply；非根提交必须带 `Co-authored-by:`。
-- **R4** 业务标识(域名/内部流水线名)：**不在包里**，来自本机种子 `patterns` → 缓存 → check.py/scan-repo。没有种子的环境 R4 不生效(doctor 会 WARN)。
-- **R5** 禁止推送到任何 Agent 分支：`agent_branch_prefixes`(claude/ codex/ chatgpt/ gpt/ openai/ agent/ deepseek/ kimi/ copilot/ cursor/ devin/ gemini/ jules/ aider/ anthropic/，大小写不敏感，含删除)。不做 main/强推保护——那是托管平台的活(CNB 的保护分支与推送管控、GitHub 的 ruleset)。
-  注意：Anthropic 云端 云端的 GitHub 代理只允许推会话工作分支 `claude/…`，所以云端会话在 R5 下推不出任何东西(按设计)。
-- **R6** 必须 SSH 签名，且不能是 Agent 通用密钥。验签方式：从提交对象剥出 `gpgsig`，`ssh-keygen -Y check-novalidate -n git` 密码学验签并取指纹——**不需要 `gpg.ssh.allowedSignersFile`**(git 自带的 `%G?`/`%GK` 没有它时全为空，rev3 就死在这里)。
-  发现未签名/通用密钥/非 SSH 签名 → 拦下并输出 `policy.signing_instructions`：让 Agent 生成 ed25519 密钥、配置 git、把公钥完整内容发给你，你手动加到托管平台账号(CNB / GitHub)。
-- **R7** 禁提交凭据**值**(`gh[pousr]_`、`github_pat_`、私钥、AKIA、`sk-…`(含 sk-proj-/sk-ant-)、xox、AIza、glpat、npm_)。**不再匹配变量名**(`GH_TOKEN`/`GITHUB_TOKEN`)。deny 理由里的凭据只回显前 8 字符。
+<a id="-检查范围"></a>
 
-## rev4 相对 rev3 的改动(全部有沙箱测试)
-1. **私有仓名出包**：policy.json / forbid-patterns(已删，无人读取) / refresh-private 写死种子 / private-repos.json / msgcb 映射 全部清除；名单进 `local-only/`。
-2. **R1 三模式统一**：rev3 的 commit-msg / pre-push / scan-repo 只查静态表(只在缓存里、不在静态表里的私有仓名，在 commit 模式直接 pass)。
-3. **deny 理由脱敏**：rev3 会把命中的完整 token 原文回显进 Agent 会话。
-4. **Claude hooks 语义修正**：rev3 放行时输出 `permissionDecision:"allow"` = **跳过权限确认**——四个 hook 合起来等于把所有 Bash/Write/Edit 自动放行。rev4 放行=不表态；拦截 = deny JSON + `exit 2`；输入解析失败按拦截；豁免路径 realpath 归一化。
-5. **R6 修复**：指纹比较(`SHA256:` 前缀)、pre-commit 指纹算法、`--no-gpg-sign` 等绕过开关在快速层被拦、`%G?`=B 也拒。
-6. **pre-push 只审远端没有的提交**(`git rev-list <tip> --not --remotes=<remote>`)：rev3 推新分支会重审全历史，历史上任一未签名(人类)提交即永久卡死(实测)。
-7. **pre-commit 只扫新增行 + 涉及路径**：rev3 扫整份 diff 含删除行，清理违规词的提交永远提交不上(实测)。新增 `pre-merge-commit`。
-8. **refresh-private 修复**：`gh api --jq .login` 输出裸字符串致 `me` 永远为 None(个人私有仓从不枚举)；`user/repos` 只翻第 1 页；组织仓被错记到 username；403 限流被当"看不到"静默丢 owner；无任何来源时会写出空的"fresh"缓存(fail open)。rev4：无来源不回写、`expected_owners` 覆盖校验(只有"看到该 owner ≥1 个私有仓"或种子列出才算覆盖，HTTP 200 不算)、原子写。
-9. **bootstrap 修复**：rev3 的 sed 漏掉 refresh/resolve/scan/doctor 与 token-helper 路径 → 缓存读写路径不一致，云端装出来即坏。rev4 覆盖 policy/*、hooks/*.sh、hooks/*.py、hooks/git/*。
-10. **install-settings 修复**：rev3 漏装 forbid-read-secret.sh；matcher 补 NotebookEdit；hook timeout 15→120s(check.py 懒刷新最长 60s；**hook 超时 = 无决策 = 放行**，timeout 必须大于内部最慢路径)。
-11. **快速层补漏**：`git push -u origin claude/x`(Claude Code 实际形态，rev3 放行)；`--no-verify`/`-c core.hooksPath=`；forbid-read-secret 去掉裸词 `token`/裸 `.env`(rev3 把 `grep -rn access_token src/`、`sed s/token/` 全拦)，补 printf/`${VAR:0:n}`/`env|`/`/proc/*/environ`/`os.environ`/`gh auth status -t`。
-12. scan-repo：无 origin 远端时永远报"干净"(selfname='' 过滤掉全部命中)已修；不再按扩展名白名单(漏 .gitmodules/Dockerfile)。
-13. 删除 check.py 里无人调用的 `tokens()/get_token()`；commit 模式先剥 `core.commentChar` 注释行。
-14. **按你的决定**：R4 业务标识全部出包进种子；R5 = 禁推一切 Agent 分支、不做 main/强推保护；#8 resolve-private 接入(xxx-xxx 形态)；#10-1 pre-push 扫新提交内容(cherry-pick/rebase/am/合并/--no-verify 进来的内容在这里兜底，实测)；#10-2 TTL 6h + Claude hook 路径永不联网(过期直接 ERROR 并给出刷新命令)；R6 改为 check-novalidate 验签 + 签名指引文案(policy.signing_instructions)；R7 去掉变量名匹配、补 `sk-proj-/sk-ant-/ghu_/ghr_/glpat/npm_`；R2 补漏的型号；token 只从环境变量 `GH_TOKEN_n` 读(不再调用 token-helper get)。
+<a id="section-3"></a>
 
-## rev4.1 相对 rev4 的改动
+## ⚙️ 检查范围
 
-15. **补上 Read/Grep 的凭据读取缺口（rev4 实测发现）**：`forbid-read-secret.sh` 只解析 Bash 的
-    `tool_input.command`，而 Claude 的 Read / Grep 工具走 `tool_input.file_path` / `tool_input.path`。
-    于是同一个动作换个工具就绕过：`cat /root/.claude/settings.json` 被拦，`Read /root/.claude/settings.json` 放行。
-    新增 `hooks/forbid-read-path.sh` + matcher `Read|Grep` 补齐这一半。
-    * **必须是新文件名**：`install-settings.py` 的去重按**脚本文件名**判定，复用
-      `forbid-read-secret.sh` 会被判「已装」而跳过注入，缺口照旧。
-    * 覆盖 Read 与 Grep（两者都能把文件**内容**带回会话）；**Glob 不覆盖**——它只回文件名不回内容。
-    * 路径先 `realpath` 归一化再匹配，防 `../` 与软链绕过；白名单放行 `*.pub` / `known_hosts` /
-      `.ssh/config` / `authorized_keys`，避免 rev4 改动 11 反对的那类过度拦截。
-    * `_lib.sh` **未改动**（新 hook 自带 JSON 解析，不调用只认 `command` 的 `get_cmd()`），影响面仅限新增文件。
+| 规则 | 检查内容 |
+|---|---|
+| R1 / R4 | 私有仓库名称与内部业务标识 |
+| R2 | 具体模型标识与会话标记 |
+| R3 | 人类作者与 Agent 协作署名 |
+| R5 | Agent 命名分支 |
+| R6 | SSH 提交签名 |
+| R7 | 凭据值与私钥形态 |
 
-16. **私有仓名出包（rev4 漏网）**：`policy/token-helper.cpp` 与 `policy/build-secure-token.py` 里各硬编码了一次发布地址
-    `https://github.com/<owner>/<repo>/releases/download/...`，而该仓是**私有**的。
-    后果有两个，rev4 都没覆盖到：
-    * 破坏「包内不含私有仓名、可放 CDN」的前提——真发到 CDN 就泄露了；doctor 只检查 `policy.json` 一项，查不到这里。
-    * **自指死结**：护栏自己的 R1 会拦住任何把新版包提交进仓库的提交（`私有仓名: <本仓名>`），
-      导致各仓 vendor 的 `guardrails/` 从引入该 URL 起就**再也同步不了**。
-    改法：URL 不再写死，构建时由 `build-secure-token.py` 从环境变量 `GUARD_PKG_URL` 注入；未设置则只是不导出该项。
+检查结果区分通过、违规与执行错误；错误按拒绝处理。快速工具钩子不联网，Git 检查可刷新名单。缓存缺失或过期时按提示修复来源，不把“无法检查”当作通过。
 
-## 部署(两边都用 bootstrap.sh，装出来的目录结构完全一致：`/root/.claude/guardrails/`)
-### 云端：Anthropic 云端 → Environment → Setup Script
-1. 把 `policy/bootstrap.sh` 整段粘进 Setup Script，改第一处 `PKG_URL_DEFAULT` 为 CDN 上的包地址(zip/tgz 均可)。
-2. Environment 环境变量：`CNB_TOKEN`(CNB 访问令牌，名单主来源，只需读组织/仓库)、`GUARD_SEED_B64`(`base64 -w0 private-seed.json`)；可选 `GH_TOKEN_1..N`(各 GitHub Owner 的 Metadata:Read PAT，只在仍有私有仓托管在 GitHub 时才需要)。
-3. Environment 网络白名单：CDN 域名 + `api.cnb.cool`；配了 GitHub 来源时再加 `api.github.com`。
-4. 脚本做的事(幂等，不漏装不重装)：装包 → 改写路径 → `core.hooksPath`(git 层，所有仓库自动生效) → 当前仓库 `.claude/settings.json` 合并 5 个 PreToolUse + SessionStart + `attribution.sessionUrl=false`(云端唯一会读的 Claude 层来源；按脚本名去重，仓库里已提交过护栏 settings 的不会再装；新写的文件进 `.git/info/exclude`) → 用户级 settings(云端忽略) → 刷新名单(拿不到环境变量就留给 SessionStart) → doctor。
-   下载/解包失败脚本退出 1(环境创建失败)——没有护栏就不该让 Agent 跑。
-5. 云端已知限制：GitHub 代理只放挂载仓库、只允许推 `claude/…`(与 R5 相斥，云端推不出东西，按设计)；环境变量与 Setup Script 对环境使用者/Agent 可读。
-### 本机 CLI(Droidspaces 容器)
-```
-HOOK_PACKAGE_URL=file:///sdcard/guardrails-rev4-package.zip bash bootstrap.sh     # 再跑一次 = 升级(种子/映射/缓存保留)
-cp private-seed.json sanitize-map.json /root/.claude/guardrails/ && chmod 600 /root/.claude/guardrails/{private-seed.json,sanitize-map.json}
-g++ -O2 -o /root/.claude/guardrails/token-helper policy/token-helper.cpp   # 先手填 token；chmod 700；由它把 CNB_TOKEN(与可选的 GH_TOKEN_1..N)写进 Claude Code 的环境
-# 产物 URL 不写死在包里：构建时用 GUARD_PKG_URL 注入（build-secure-token.py 读它）；不设则只是不导出 PKG_URL_DEFAULT
-#   例：GUARD_PKG_URL=https://<你的发布地址>/guardrails-rev4-package.zip python3 policy/build-secure-token.py policy/token-helper.cpp /tmp/gen.cpp
-apt-get install -y openssh-client                                            # ssh-keygen 是 R6 验签的硬依赖
-python3 /root/.claude/guardrails/hooks/refresh-private.py && python3 /root/.claude/guardrails/policy/doctor.py
-```
-仓库级 `.claude/settings.json` 若要提交进仓库，两边路径一致(都是 `/root/.claude/guardrails/hooks/...`)，本机也直接生效；用户级 settings 里的同名 hook 会各跑一次(重复 deny 一次，无害)。
+<a id="-维护与许可"></a>
 
-## 已按你的决定处理(rev4)
-- token 设计：护栏只读环境变量 `GH_TOKEN_1..N`；token-helper 的职责就是把它们写进环境。
-- R5：禁推一切 Agent 分支(claude/ codex/ chatgpt/ …)；不做 main/强推保护(ruleset 负责)。
-- R4：域名/内部标识全部出包 → 本机种子 `patterns`。
-- R6：不依赖 allowedSignersFile，直接验签；拦下即输出"生成 ed25519 + 发公钥给我"的指引。
-- R2：只补漏的型号，不改形态；R7：去掉变量名匹配。
-- #8 resolve 接入(xxx-xxx)；#9 裸名子串不改；#10-1 pre-push 扫内容、#10-2 TTL 6h + Claude 层不联网；#10-3/4/5 维持原设计。
+<a id="section-4"></a>
 
-## 已定(第二轮)
-- 云端：Environment Setup Script = bootstrap.sh；Claude 层走仓库级 `.claude/settings.json`(幂等、去重、未跟踪即 exclude)；名单来源 = `GH_TOKEN_n` + `GUARD_SEED_B64`。`expected_owners` 因此不需要填(种子里的 owners 就是覆盖声明)。
-- 护栏目录/`settings.json` 写入不再豁免，和普通文件一样扫(含规则词的 README 会被拦)。
-- 放行 = 不表态，本机恢复正常权限弹窗；Claude hooks 不联网(缓存过期直接拦并给刷新命令；未知裸名只在 git 层查)。
+## 📚 维护与许可
 
-## rev4.2 相对 rev4.1 的改动
-1. **pre-push 重签豁免**：待推提交若与远端已有某个提交"内容改动完全相同"——只是换了签名 / committer / 父提交（整仓 SSH 重签、rebase、原样 cherry-pick）——不再重扫其新增行；**消息、签名、作者/提交者邮箱照查**。判定二选一：(a) 树签名相同，即 `(tree, 各父提交的 tree)` 逐一相等 ⇒ diff 必然相同，且完全不读 blob（远端历史缺 blob 的不完整镜像也能判）；(b) `git patch-id --stable` 相同，只对作者时间相同的远端候选逐个算 `diff-tree`，单个算不出就不豁免那一个。背景：迁移到新平台后整仓重签，重写后的历史对远端而言全是"新提交"，历史上早已放行的旧内容会被今天的规则整体重审而永久卡死。任何环节失败都只是"不豁免"，绝不因此放行。`policy.resign_exempt=false` 可整体关闭。
-2. **远端"已有"不再只信本地 `refs/remotes/*`**：`--net` 下以 `git ls-remote` 拿到的真实顶点为准（本地跟踪 ref 一条 `update-ref` 就能伪造成"远端已有"，rev4 的 `--not --remotes=` 也有此问题，一并改为优先用真实顶点）；无网络退回本地跟踪 ref（git 钩子总是带 `--net`）。
-3. **R2 型号规则跳过 base64 编码串**：命中若整个落在一段 ≥24 字符、无分隔符、大小写与数字混杂的串里（JSON 内嵌的图片/音频数据），视为编码数据不算命中。真实型号名从不会有 24 个以上连续字母数字且没有任何分隔符——带连字符/点号的长型号名照样命中。R7 凭据规则不走这条。
-4. **R7 的 Google API key 形态收紧为固定 39 位**（`AIza` + 35 位，前后不能再接同类字符）：原 `{30,}` 会把 base64 里任意 `AIza…` 片段整段吞掉。
+- [部署与规则](docs/OPERATIONS.md)：配置、安装、检查模式及适用边界。
+- [历史变更](docs/CHANGELOG.md)：编码、路径、签名和名单来源问题的修复记录。
+- [协作约定](CLAUDE.md)：内容卫生与署名要求。
 
-## rev4.3 相对 rev4.2 的改动
-1. **中文 Windows / GBK 区域设置下的编码问题**：Python 在这类环境里默认按本地编码（GBK）读写标准流、`open()` 与子进程输出，而 git、gh、Claude Code 给的都是 UTF-8。后果是读到的中文乱码或直接抛 `UnicodeDecodeError`——不少调用点把异常当成「查不到」处理，于是**静默放行**；输出 `✘` 等 GBK 里没有的字符则直接崩溃。实测：内联 `json.load(open(policy.json))` 在 GBK 环境下抛错，`pre-commit` 随即退回兜底值，签名指纹变成空串。修法分三层：
-   - 所有 shell 入口（`_lib.sh`、`commit-msg` / `pre-commit` / `pre-push`、`bootstrap.sh`）导出 `PYTHONUTF8=1`，内联 `python3 -c` 一并生效；
-   - 每个 Python 入口脚本启动时把 stdin / stdout / stderr 统一设为 UTF-8，父子进程之间的管道两端编码一致；
-   - `subprocess.run(text=True)` 一律显式 `encoding='utf-8', errors='replace'`，`open()` 显式 `encoding='utf-8'`——脚本被单独运行时也不依赖环境变量。
+代码采用 [GPLv3](LICENSE)。
 
-## rev4.4 相对 rev4.3 的改动
-1. **名单来源以 CNB 为主、GitHub 改为可选**：仓库已迁到 CNB，CNB 平台（令牌文件或 `CNB_TOKEN`）成为私有仓名单的主来源；GitHub（`GH_TOKEN_n`、gh）只在仍有私有仓托管在 GitHub 时才需要配置。取并集、令牌配置了就必须成功、没配置就跳过的语义不变——refresh / resolve 的判定逻辑本来就与平台无关，这次改的是外围：
-   - `token-helper.cpp` 新增 `CNB_TOKEN` 槽位；`build-secure-token.py` 原先要求至少有一个 `GH_` 开头的令牌，**只填 CNB 令牌会直接报 `NO_TOKENS_EXTRACTED` 构建失败**，现在 `CNB_` 与 `GH_` 任一即可；
-   - `doctor.py` 新增「配置了 CNB 令牌」检查；没有 `GH_TOKEN_n` 降为提示而不再告警；判断「缓存含平台实时数据」时把 `seed-env`（来自环境变量的种子）也当作种子，此前会误判为实时数据；
-   - `bootstrap.sh` 与部署说明：环境变量以 `CNB_TOKEN` 为主，网络白名单加 `api.cnb.cool`；`check.py` / `refresh-private.py` 的出错提示补上 CNB 令牌；`policy.json` 的来源说明同步改写；「main 保护是 GitHub ruleset 的活」改为平台中性的表述。
-2. **把 cnb 命令行工具的登录令牌 `~/.cnb/token` 加入禁读名单**（`forbid-read-secret.sh` 与 `forbid-read-path.sh`）：此前 GitHub 的 `hosts.yml`、CNB 的 `.cnb-auth-token` 都在名单里，唯独它不在，`cat ~/.cnb/token` 可以直接把令牌读进会话。
-3. **`forbid-read-path.sh` 在 Windows 上完全不生效（rev4.1 起）**：一是开头只把以 `/` 开头的路径当绝对路径，Windows 上 Read / Grep 给的是 `C:\…` 形态，于是直接放行；二是 `realpath` 在 Windows 上返回反斜杠路径，按 `/` 写的规则一条也匹配不上。现在接受盘符路径，并在规范化后统一把 `\` 换成 `/`。实测 `C:\…`、`C:/…`、`/c/…` 三种形态下的令牌、私钥、Claude 配置与 `.env` 均能拦住，公钥、`.env.example` 与普通文件照常放行。
+
+<a id="section-5"></a>
+
+## 🧪 验证与故障定位
+
+先运行 `python3 policy/doctor.py` 核对安装路径、配置和 Git 钩子，再按 [操作说明](docs/OPERATIONS.md) 分别检查内容、提交和推送入口。安装自检不能替代真实拦截验证；需要确认缺配置、缺名单和违规样本按设计返回非成功结果。
+
+`settings.json` 是工具钩子接线入口，`policy/` 是 Git 检查实现；更换安装位置时须一起核对，避免工具层有提示而 Git 层没有接上。
