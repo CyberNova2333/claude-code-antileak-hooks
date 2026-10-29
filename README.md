@@ -1,5 +1,7 @@
 # Claude Code Antileak Hooks 🛡️
 
+[English](README.en.md) · [中文源码指南](repo-docs/README.md)
+
 > **用于 Agent 协作与 Git 提交的内容检查、署名和签名护栏。**
 
 [部署与规则](docs/OPERATIONS.md) · [变更记录](docs/CHANGELOG.md) · [GPLv3](LICENSE)
@@ -102,7 +104,6 @@ python3 policy/doctor.py
 
 代码采用 [GPLv3](LICENSE)。
 
-
 <a id="section-5"></a>
 
 ## 🧪 验证与故障定位
@@ -110,3 +111,21 @@ python3 policy/doctor.py
 先运行 `python3 policy/doctor.py` 核对安装路径、配置和 Git 钩子，再按 [操作说明](docs/OPERATIONS.md) 分别检查内容、提交和推送入口。安装自检不能替代真实拦截验证；需要确认缺配置、缺名单和违规样本按设计返回非成功结果。
 
 `settings.json` 是工具钩子接线入口，`policy/` 是 Git 检查实现；更换安装位置时须一起核对，避免工具层有提示而 Git 层没有接上。
+
+<!-- repo-docs routing -->
+
+## 源码指南与文档站
+
+工具事件先检查即将写入的内容，Git 事件再检查实际提交和推送。两层调用同一个策略引擎；名单或执行依据不足时必须与“检查通过”区分。
+
+从[阅读路径](repo-docs/README.md)进入[一条真实主流程](repo-docs/walkthroughs/one-real-run.md)，再用[代码地图](repo-docs/code-map.md)定位改动。证据与未覆盖边界见[源码调查记录](repo-docs/references/source-evidence.md)。
+
+## 文档站
+
+文档站采用 VitePress 默认主题，依赖与业务项目分开安装。默认输出 `docs-site/.vitepress/dist/`；独立核验可在构建命令后加 `-- --outDir <仓库外绝对目录>`。指南正文只维护 `repo-docs/`，站点通过 include 读取；网页中的仓库源码链接显示为精确文件路径，不复制源码或本机资源。
+
+```sh
+npm --prefix docs-site ci
+npm --prefix docs-site run docs:dev -- --host 127.0.0.1
+npm --prefix docs-site run docs:build
+```
