@@ -18,6 +18,9 @@
 
 <a id="section-1"></a>
 
+
+> 📐 **交互式架构图表**：支持动态探查、缩放平移与主题切换的高保真架构图：[代码防泄漏钩子审计流转图](https://cybernova2333.github.io/claude-code-antileak-hooks/diagrams/antileak-workflow.html)。
+
 ## 🏛️ 分层代码架构
 
 工具钩子与 Git 钩子是不同入口，共用 Python 策略判定。规则引擎读取部署策略和名单缓存，并在需要时通过独立刷新或查询脚本补充依据；安装脚本只负责接入，不属于判定核心。
