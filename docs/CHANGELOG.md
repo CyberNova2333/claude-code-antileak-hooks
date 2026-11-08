@@ -67,9 +67,9 @@
    - `subprocess.run(text=True)` 一律显式 `encoding='utf-8', errors='replace'`，`open()` 显式 `encoding='utf-8'`——脚本被单独运行时也不依赖环境变量。
 
 ## rev4.4 相对 rev4.3 的改动
-1. **名单来源以 CNB 为主、GitHub 改为可选**：仓库已迁到 CNB，CNB 平台（令牌文件或 `CNB_TOKEN`）成为私有仓名单的主来源；GitHub（`GH_TOKEN_n`、gh）只在仍有私有仓托管在 GitHub 时才需要配置。取并集、令牌配置了就必须成功、没配置就跳过的语义不变——refresh / resolve 的判定逻辑本来就与平台无关，这次改的是外围：
-   - `token-helper.cpp` 新增 `CNB_TOKEN` 槽位；`build-secure-token.py` 原先要求至少有一个 `GH_` 开头的令牌，**只填 CNB 令牌会直接报 `NO_TOKENS_EXTRACTED` 构建失败**，现在 `CNB_` 与 `GH_` 任一即可；
-   - `doctor.py` 新增「配置了 CNB 令牌」检查；没有 `GH_TOKEN_n` 降为提示而不再告警；判断「缓存含平台实时数据」时把 `seed-env`（来自环境变量的种子）也当作种子，此前会误判为实时数据；
-   - `bootstrap.sh` 与部署说明：环境变量以 `CNB_TOKEN` 为主，网络白名单加 `api.cnb.cool`；`check.py` / `refresh-private.py` 的出错提示补上 CNB 令牌；`policy.json` 的来源说明同步改写；「main 保护是 GitHub ruleset 的活」改为平台中性的表述。
-2. **把 cnb 命令行工具的登录令牌 `~/.cnb/token` 加入禁读名单**（`forbid-read-secret.sh` 与 `forbid-read-path.sh`）：此前 GitHub 的 `hosts.yml`、CNB 的 `.cnb-auth-token` 都在名单里，唯独它不在，`cat ~/.cnb/token` 可以直接把令牌读进会话。
+1. **名单来源以 托管平台 为主、GitHub 改为可选**：仓库已迁到 托管平台，托管平台 平台（令牌文件或 `PLATFORM_TOKEN`）成为私有仓名单的主来源；GitHub（`GH_TOKEN_n`、gh）只在仍有私有仓托管在 GitHub 时才需要配置。取并集、令牌配置了就必须成功、没配置就跳过的语义不变——refresh / resolve 的判定逻辑本来就与平台无关，这次改的是外围：
+   - `token-helper.cpp` 新增 `PLATFORM_TOKEN` 槽位；`build-secure-token.py` 原先要求至少有一个 `GH_` 开头的令牌，**只填 平台令牌会直接报 `NO_TOKENS_EXTRACTED` 构建失败**，现在 `托管平台_` 与 `GH_` 任一即可；
+   - `doctor.py` 新增「配置了 平台令牌」检查；没有 `GH_TOKEN_n` 降为提示而不再告警；判断「缓存含平台实时数据」时把 `seed-env`（来自环境变量的种子）也当作种子，此前会误判为实时数据；
+   - `bootstrap.sh` 与部署说明：环境变量以 `PLATFORM_TOKEN` 为主，网络白名单加 `api.github.com`；`check.py` / `refresh-private.py` 的出错提示补上 平台令牌；`policy.json` 的来源说明同步改写；「main 保护是 GitHub ruleset 的活」改为平台中性的表述。
+2. **把 CLI 命令行工具的登录令牌 `~/.git-credentials` 加入禁读名单**（`forbid-read-secret.sh` 与 `forbid-read-path.sh`）：此前 GitHub 的 `hosts.yml`、托管平台 的 `.git-auth-token` 都在名单里，唯独它不在，`cat ~/.git-credentials` 可以直接把令牌读进会话。
 3. **`forbid-read-path.sh` 在 Windows 上完全不生效（rev4.1 起）**：一是开头只把以 `/` 开头的路径当绝对路径，Windows 上 Read / Grep 给的是 `C:\…` 形态，于是直接放行；二是 `realpath` 在 Windows 上返回反斜杠路径，按 `/` 写的规则一条也匹配不上。现在接受盘符路径，并在规范化后统一把 `\` 换成 `/`。实测 `C:\…`、`C:/…`、`/c/…` 三种形态下的令牌、私钥、Claude 配置与 `.env` 均能拦住，公钥、`.env.example` 与普通文件照常放行。
