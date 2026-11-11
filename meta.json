@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/CyberNova2333/cybernova-homepage/main/public/schemas/repo-meta.v1.json",
+  "schemaVersion": 1,
+  "slug": "claude-code-antileak-hooks",
+  "name": "Claude Code Antileak Hooks",
+  "title": {
+    "zh": "Claude Code Antileak Hooks · 提交前敏感信息与签名检查脚本",
+    "en": "Claude Code Antileak Hooks · Pre-Commit Secret & Signature Check Hooks"
+  },
+  "visibility": "public",
+  "status": "active",
+  "category": "ai-agent",
+  "featured": false,
+  "order": 8,
+  "repository": "https://github.com/CyberNova2333/claude-code-antileak-hooks",
+  "homepage": "https://cybernova2333.github.io/claude-code-antileak-hooks/",
+  "docsUrl": "https://cybernova2333.github.io/claude-code-antileak-hooks/docs/",
+  "license": "GPL-3.0-only",
+  "primaryLanguage": "Python",
+  "techStack": [
+    "Python 3",
+    "Bash",
+    "Git Hooks",
+    "Claude Code Hooks",
+    "OpenSSH"
+  ],
+  "tags": [
+    "git-hooks",
+    "secret-scanning",
+    "claude-code",
+    "ssh-signing"
+  ],
+  "summary": {
+    "zh": "给 Claude Code 会话和 Git 提交流程用的检查钩子，用来拦截误提交的密钥、内部地址，并检查作者邮箱与 SSH 签名。",
+    "en": "Hook scripts for Claude Code sessions and Git workflows that scan for accidental secrets or internal URLs and verify commit authorship and SSH signatures."
+  },
+  "highlights": {
+    "zh": [
+      "在工具调用前（PreToolUse）和 Git 提交/推送前共用同一份 Python 检查规则",
+      "扫描常见的 API Token、私钥格式与不该公开的内部域名，命中时只提示位置而不把密钥原文打印到终端",
+      "检查 Git 提交是否配置了正确的作者身份以及本地 SSH 签名"
+    ],
+    "en": [
+      "Shares a single Python rule script between Claude Code PreToolUse hooks and Git pre-commit/pre-push hooks",
+      "Scans for API tokens, private keys, and internal domains without printing matched secrets to stdout",
+      "Verifies Git commit author configuration and local SSH commit signatures"
+    ]
+  },
+  "quickStart": [
+    "python3 policy/doctor.py",
+    "pnpm --dir docs-site run docs:build"
+  ],
+  "roadmap": {
+    "stage": "日常维护",
+    "stageEn": "Maintained",
+    "milestone": {
+      "zh": "目前在本地各仓库中作为常规 Git 提交检查钩子使用。",
+      "en": "Used across local repositories as a standard pre-commit and pre-push check."
+    }
+  },
+  "updatedAt": "2026-11-11"
+}
