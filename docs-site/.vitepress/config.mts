@@ -1,102 +1,111 @@
-// VitePress 官方文档配置 (Coolify 架构风格 + 中英双语支持)
 import { defineConfig } from 'vitepress'
+import { guideLinks } from './guide-links.mts'
+
+const guideRoutes = {
+  'README.md': 'docs/architecture',
+  'walkthroughs/one-real-run.md': 'docs/architecture',
+  'code-map.md': 'docs/code-map',
+  'modules/policy-engine.md': 'docs/contracts',
+  'modules/hook-wrappers.md': 'docs/contracts',
+  'modules/private-list-sync.md': 'docs/configuration',
+  'modules/deployment-and-checks.md': 'docs/configuration',
+  'references/source-evidence.md': 'docs/code-map',
+  'references/quality-review.md': 'docs/code-map',
+  'glossary.md': 'docs/contracts',
+  'change-log.md': 'docs/changelog',
+}
 
 export default defineConfig({
   cleanUrls: true,
+  markdown: {
+    config: guideLinks(guideRoutes),
+  },
   locales: {
     root: {
       label: '简体中文',
       lang: 'zh-CN',
-      title: "Claude Code Antileak Hooks 官方文档",
-      description: "Claude Code Antileak Hooks 是严密的多层敏感凭证与零数据泄漏拦截守卫。",
+      title: 'Claude Code Antileak Hooks 文档',
+      description: '面向 Claude Code 会话与 Git 工作流的多层敏感凭证、私有仓名与 SSH 签名防泄漏护栏。',
       themeConfig: {
-        siteTitle: "代码防泄漏钩子",
+        siteTitle: '代码防泄漏钩子',
         nav: [
-          { text: '官网首页', link: '/' },
-          { text: '快速入门', link: '/docs/' },
-          { text: '系统架构', link: '/docs/architecture' },
-          { text: '配置指南', link: '/docs/configuration' },
-          { text: '常见问题', link: '/docs/faq' },
+          { text: '首页', link: '/' },
+          { text: '起步与配置部署', link: '/docs/' },
+          { text: '接口与扩展契约', link: '/docs/contracts' },
+          { text: '原理与源码导览', link: '/docs/architecture' },
           { text: 'GitHub', link: 'https://github.com/CyberNova2333/claude-code-antileak-hooks' },
         ],
         sidebar: [
           {
-            text: '快速入门',
+            text: '1. 起步与配置部署',
             items: [
-              { text: '项目概览与上手', link: '/docs/' },
-            ]
+              { text: '概览、边界与多环境部署', link: '/docs/' },
+              { text: '配置矩阵、私有种子与排错 FAQ', link: '/docs/configuration' },
+            ],
           },
           {
-            text: '系统架构',
+            text: '2. 接口与扩展契约',
             items: [
-              { text: '架构设计与全景图', link: '/docs/architecture' },
-            ]
+              { text: '钩子协议、R1–R7 规则与扩展 FAQ', link: '/docs/contracts' },
+            ],
           },
           {
-            text: '配置与实践',
+            text: '3. 原理与源码导览（含决策迁移）',
             items: [
-              { text: '配置与使用指南', link: '/docs/configuration' },
-            ]
+              { text: '架构全景与主流程走读', link: '/docs/architecture' },
+              { text: '代码地图与维护守卫区分', link: '/docs/code-map' },
+              { text: '版本变更与迁移记录', link: '/docs/changelog' },
+            ],
           },
-          {
-            text: '运维与支持',
-            items: [
-              { text: '常见问题与排错', link: '/docs/faq' },
-            ]
-          }
         ],
         outline: { level: [2, 3], label: '本页目录' },
         docFooter: { prev: '上一页', next: '下一页' },
-      }
+      },
     },
     en: {
       label: 'English',
       lang: 'en-US',
       link: '/en/',
-      title: "Claude Code Antileak Hooks Documentation",
-      description: "Claude Code Antileak Hooks is a multi-layered sensitive credential and zero-data-leakage interception guardrail for AI coding assistants.",
+      title: 'Claude Code Antileak Hooks Docs',
+      description: 'Multi-layer leak prevention hooks for Claude Code tool calls and Git commit/push pipelines.',
       themeConfig: {
-        siteTitle: "Antileak Hooks",
+        siteTitle: 'Antileak Hooks',
         nav: [
           { text: 'Home', link: '/en/' },
-          { text: 'Quick Start', link: '/en/docs/' },
-          { text: 'Architecture', link: '/en/docs/architecture' },
-          { text: 'Configuration', link: '/en/docs/configuration' },
-          { text: 'FAQ', link: '/en/docs/faq' },
+          { text: 'Setup & Config', link: '/en/docs/' },
+          { text: 'Contracts & Rules', link: '/en/docs/contracts' },
+          { text: 'Architecture & Internals', link: '/en/docs/architecture' },
           { text: 'GitHub', link: 'https://github.com/CyberNova2333/claude-code-antileak-hooks' },
         ],
         sidebar: [
           {
-            text: 'Quick Start',
+            text: '1. Setup & Configuration',
             items: [
-              { text: 'Overview & Getting Started', link: '/en/docs/' },
-            ]
+              { text: 'Overview, Scope & Deployment', link: '/en/docs/' },
+              { text: 'Config Matrix, Seeds & Troubleshooting FAQ', link: '/en/docs/configuration' },
+            ],
           },
           {
-            text: 'Architecture',
+            text: '2. Contracts & Extensions',
             items: [
-              { text: 'Architecture Design', link: '/en/docs/architecture' },
-            ]
+              { text: 'Hook Protocols, R1–R7 & Extension FAQ', link: '/en/docs/contracts' },
+            ],
           },
           {
-            text: 'Configuration & Practice',
+            text: '3. Architecture, Code & Migration',
             items: [
-              { text: 'Configuration Guide', link: '/en/docs/configuration' },
-            ]
+              { text: 'Architecture & Real-Run Walkthrough', link: '/en/docs/architecture' },
+              { text: 'Code Map & Repo Guard Separation', link: '/en/docs/code-map' },
+              { text: 'Changelog & Migration Guide', link: '/en/docs/changelog' },
+            ],
           },
-          {
-            text: 'Operations & Support',
-            items: [
-              { text: 'FAQ & Diagnostics', link: '/en/docs/faq' },
-            ]
-          }
         ],
         outline: { level: [2, 3], label: 'On this page' },
         docFooter: { prev: 'Previous page', next: 'Next page' },
-      }
-    }
+      },
+    },
   },
   themeConfig: {
     search: { provider: 'local' },
-  }
+  },
 })

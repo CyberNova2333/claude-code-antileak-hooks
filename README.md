@@ -1,132 +1,83 @@
-# Claude Code Antileak Hooks 🛡️
+# Claude Code Antileak Hooks
 
-[English](README.en.md) · [中文源码指南](repo-docs/README.md)
+[简体中文](README.md) · [English](README.en.md) · [在线文档站](https://cybernova2333.github.io/claude-code-antileak-hooks/) · License: `AGPL-3.0-only`
 
-> **用于 Agent 协作与 Git 提交的内容检查、署名和签名护栏。**
+面向 Claude Code 会话与 Git 工作流的双层防泄漏护栏套件：在 Agent 工具调用前离线拦截违规写入与敏感文件读取，并在 Git 提交、合并和推送边界强制核验私有名单（R1）、模型与会话标记（R2）、作者署名（R3）、内部业务正则（R4）、Agent 分支（R5）、非通用 SSH 提交签名（R6）及凭据格式（R7）。
 
-[部署与规则](docs/OPERATIONS.md) · [变更记录](docs/CHANGELOG.md) · [GPLv3](LICENSE)
+适用环境覆盖 Linux、macOS 与中文 Windows（全链路 UTF-8 编码兼容）；本套件不接管托管平台的受保护分支规则，也不拦截仅返回文件名的 `Glob` 工具调用。
 
-通过 Claude Code hooks 提前提示，通过 Git hooks 检查实际提交与推送。它用于减少误操作和意外泄露；拥有本机控制权的进程仍能绕过本机检查。
+## 核心能力与拦截流转
 
-<a id="-系统结构"></a>
+- **工具层与 Git 层双保险**：`settings.json` 注册 6 个 `PreToolUse` 与 1 个 `SessionStart` 钩子负责低延迟离线阻断；4 个 Git 客户端钩子（`pre-commit`、`pre-merge-commit`、`commit-msg`、`pre-push`）携带 `--net` 执行最终对象级核验。
+- **可分发配置与私有资产彻底隔离**：随包分发的 `policy/policy.json` 不含任何私有仓库名、内部域名或令牌；私有清单与 R4 正则仅驻留本机 `private-seed.json`（或云端 `GUARD_SEED_B64`）与 `6h` TTL 动态缓存，缺失或过期一律按 `error` 阻断。
+- **Fail-Closed 三态裁决与脱敏**：单一策略引擎 `policy/check.py` 严格区分 `pass`、`violation` 与 `error`；放行仅安静退出 `0`（绝不输出会跳过宿主权限确认的 `allow`），命中凭据仅回显前 8 位与脱敏标识。
+- **无 `allowedSignersFile` 直接 SSH 验签**：从提交对象直接剥离 `gpgsig` 并调用 `ssh-keygen -Y check-novalidate` 验签及核对指纹，同时支持以 `git ls-remote` 真实顶点为锚点的 `known_content` 重签豁免。
 
-**阅读导航**
-
-[🏛️ 分层代码架构](#section-1) · [🚀 快速开始](#section-2) · [⚙️ 检查范围](#section-3) · [📚 维护与许可](#section-4) · [🧪 验证与故障定位](#section-5)
-
----
-
-<a id="section-1"></a>
-
-
-## 🏛️ 分层代码架构
-
-工具钩子与 Git 钩子是不同入口，共用 Python 策略判定。规则引擎读取部署策略和名单缓存，并在需要时通过独立刷新或查询脚本补充依据；安装脚本只负责接入，不属于判定核心。
-
-图中展示主要代码依赖：实线箭头指向被调用或被依赖的模块，虚线表示实现或生成关系；数据读写另用连线文字标明。
+下面展示工具调用与 Git 钩子如何共享同一策略引擎并执行 fail-closed 拦截：
 
 ```mermaid
-flowchart TB
-    subgraph L0["事件适配层"]
-        TOOLS["hooks · 工具事件包装"]
-        GIT["hooks/git · Git 事件包装"]
-    end
-    subgraph L1["策略与检查层"]
-        CHECK["policy/check.py"]
-        SCAN["scan-repo.py"]
-    end
-    subgraph L2["策略数据与来源适配"]
-        POLICY["policy.json / 私有缓存"]
-        REFRESH["refresh-private.py"]
-        RESOLVE["resolve-private.py"]
-    end
-    TOOLS --> CHECK
-    GIT --> CHECK
-    CHECK --> POLICY
-    SCAN --> POLICY
-    CHECK --> REFRESH
-    CHECK --> RESOLVE
-    REFRESH --> POLICY
-    RESOLVE --> POLICY
+flowchart LR
+  Input["Claude PreToolUse / Git Hook"] --> Extract["包装脚本提取载荷并做路径归一"]
+  Extract -->|解析失败| Block["输出 deny JSON / exit 2 或 exit 1"]
+  Extract --> Engine["策略引擎 policy/check.py (R1-R7)"]
+  Cache["动态名单缓存 6h TTL / --net 单名查询"] --> Engine
+  Engine -->|violation / error| Block
+  Engine -->|精确 pass| Pass["安静放行 exit 0（不输出 allow）"]
 ```
 
-| 层次 | 源码入口 | 职责与边界 |
-|---|---|---|
-| 事件适配层 | [hooks · 工具事件包装](hooks/) | 将 Agent 工具参数交给对应检查；包含 shell 包装与公共辅助。 |
-| 事件适配层 | [hooks/git · Git 事件包装](hooks/git/) | 转交提交、合并和推送参数。 |
-| 策略与检查层 | [policy/check.py](policy/check.py) | content、commit、push 入口共享内容扫描、身份和签名等判据。 |
-| 策略与检查层 | [scan-repo.py](hooks/scan-repo.py) | 独立存量扫描入口，按策略遍历仓库内容。 |
-| 策略数据与来源适配 | [policy.json / 私有缓存](policy/policy.json) | 声明规则、脚本位置和缓存路径；实际私有数据由部署侧提供。 |
-| 策略数据与来源适配 | [refresh-private.py](hooks/refresh-private.py) | 聚合配置过的来源并更新名单。 |
-| 策略数据与来源适配 | [resolve-private.py](hooks/resolve-private.py) | 解析缓存外的候选名称，返回可见性或错误。 |
+## 快速开始
 
-<a id="-快速开始"></a>
+源码中预置了模板路径，必须经由 `policy/bootstrap.sh` 铺设并改写到 `$GUARD`（默认为 `$HOME/.claude/guardrails`）后才可生效；以下为本机 CLI 默认安装与自检路径：
 
-<a id="section-2"></a>
+```bash
+# 1. 下载或指定发布压缩包并完成铺设、路径改写及 Git/Claude 设置注入
+HOOK_PACKAGE_URL=file:///path/to/guardrails-package.zip bash policy/bootstrap.sh
 
-## 🚀 快速开始
+# 2. 部署本机私有种子与历史脱敏映射（仅留本机，严禁进入仓库）
+cp private-seed.json sanitize-map.json "$HOME/.claude/guardrails/"
+chmod 600 "$HOME/.claude/guardrails/private-seed.json" "$HOME/.claude/guardrails/sanitize-map.json"
 
-运行环境为 Bash、Python 3、Git 和 OpenSSH。先按 [部署参考](docs/OPERATIONS.md) 配置名单来源、本机种子与安装路径，再使用 `policy/bootstrap.sh` 安装。
-
-安装后可先运行只读检查：
-
-```sh
-python3 policy/doctor.py
+# 3. 刷新私有名单缓存并执行只读自检（预期输出 Overall: PASS）
+python3 "$HOME/.claude/guardrails/hooks/refresh-private.py"
+python3 "$HOME/.claude/guardrails/policy/doctor.py"
 ```
 
-详细安装命令、云端与本机的区别、名单刷新方式见 [部署与规则](docs/OPERATIONS.md)。不要把本机名单、凭据或带凭据的辅助程序打进分发包。
+| 部署场景 / 模式 | 核心要点与适用边界 | 详细指引 |
+| --- | --- | --- |
+| 云端容器 / Setup Script | 修改 `PKG_URL_DEFAULT`，注入 `GUARD_SEED_B64` 与只读平台令牌 | [多环境部署指南](docs-site/docs/index.md#方式二托管容器--云端-setup-script-部署) |
+| 本机多仓库与 `token-helper` | 用 `GUARD_REPOS` 批量注入设置，或将令牌 XOR 混淆编译为本机可执行文件 | [部署方式与自检说明](docs-site/docs/index.md) |
+| R6 个人 SSH 签名配置 | 生成独立 `ed25519` 密钥并配置 `commit.gpgsign=true` 与 `gpg.format=ssh` | [契约与签名规则说明](docs-site/docs/contracts.md) |
+| 存量仓库基线审计 | 使用 `hooks/scan-repo.py` 审计当前树或 `--scan-history` 历史提交 | [配置矩阵与排错文档](docs-site/docs/configuration.md) |
+| 维护本仓库自身提交 | 安装仓库内置的 `tools/repo_maintenance_guard.py` 离线提交守卫 | [贡献指南](CONTRIBUTING.md) |
 
-<a id="-检查范围"></a>
+## 选型前常见问题
 
-<a id="section-3"></a>
+**Q1：分发包和 `policy/policy.json` 会不会带出私有仓库名或内部域名？**  
+不会。所有私有仓库清单与内部业务正则均保存在部署侧 `private-seed.json`（或云端环境变量）与本机缓存中，随包仅含通用规则，且 `doctor.py` 会主动检验不存在反向泄露。
 
-## ⚙️ 检查范围
+**Q2：能否直接把克隆仓库里的 `hooks/git` 配成 `core.hooksPath` 使用？**  
+不能。仓库源码中的钩子与配置保留了待替换模板路径，必须由 `policy/bootstrap.sh` 解包并用 `sed` 改写为实际 `$GUARD` 路径后才能正常运行。
 
-| 规则 | 检查内容 |
-|---|---|
-| R1 / R4 | 私有仓库名称与内部业务标识 |
-| R2 | 具体模型标识与会话标记 |
-| R3 | 人类作者与 Agent 协作署名 |
-| R5 | Agent 命名分支 |
-| R6 | SSH 提交签名 |
-| R7 | 凭据值与私钥形态 |
+**Q3：本套件能否代替托管平台受保护分支，或阻止具备高权限的用户刻意绕过？**  
+不能。规则 R5 有意将受保护分支与强推拦截交给托管平台规则集；工具层与本地钩子旨在低延迟防止误操作与会话泄露，最终强防线仍需结合远端权限管控。
 
-检查结果区分通过、违规与执行错误；错误按拒绝处理。快速工具钩子不联网，Git 检查可刷新名单。缓存缺失或过期时按提示修复来源，不把“无法检查”当作通过。
+**Q4：为什么 Claude Code 工具钩子不直接联网，而在缓存过期时直接阻断？**  
+因为宿主对工具钩子设有超时机制，超时被终止后会被视作“无决策”并直接放行。为了彻底避免 fail-open，所有 `PreToolUse` 包装脚本绝不传 `--net`，由 `SessionStart` 或 Git 层负责刷新。
 
-<a id="-维护与许可"></a>
+**Q5：`hooks/` 与 `tools/repo_maintenance_guard.py` 有什么区别？**  
+`hooks/`、`hooks/git/` 与 `policy/` 是部署到使用者环境的产品套件；`tools/repo_maintenance_guard.py` 则是维护本仓库自身克隆的离线对象扫描与 Conventional Commits 检查器，两者职责完全独立。
 
-<a id="section-4"></a>
+## 文档导读路径
 
-## 📚 维护与许可
+| 阅读目标 | 用户文档站入口 | 仓库源码指南入口 |
+| --- | --- | --- |
+| 安装部署、环境变量矩阵与常见排错 | [起步与配置部署](docs-site/docs/index.md) · [配置与排错](docs-site/docs/configuration.md) | [部署安装与自检模块](repo-docs/modules/deployment-and-checks.md) · [动态名单同步模块](repo-docs/modules/private-list-sync.md) |
+| 钩子 JSON 契约、R1–R7 规则与扩展 | [接口与扩展契约](docs-site/docs/contracts.md) | [策略引擎模块](repo-docs/modules/policy-engine.md) · [双层钩子包装模块](repo-docs/modules/hook-wrappers.md) · [术语表](repo-docs/glossary.md) |
+| 架构图、真实调用走读与代码导航 | [架构全景与主流程](docs-site/docs/architecture.md) · [代码地图](docs-site/docs/code-map.md) | [一次真实写入判定](repo-docs/walkthroughs/one-real-run.md) · [代码地图](repo-docs/code-map.md) |
+| 版本迁移决策与源码审计记录 | [版本变更与迁移](docs-site/docs/changelog.md) | [指南变更记录](repo-docs/change-log.md) · [源码证据审计](repo-docs/references/source-evidence.md) · [阅读质量审计](repo-docs/references/quality-review.md) |
 
-- [部署与规则](docs/OPERATIONS.md)：配置、安装、检查模式及适用边界。
-- [历史变更](docs/CHANGELOG.md)：编码、路径、签名和名单来源问题的修复记录。
-- [协作约定](CLAUDE.md)：内容卫生与署名要求。
+## 许可证与安全协作
 
-代码采用 [GPLv3](LICENSE)。
-
-<a id="section-5"></a>
-
-## 🧪 验证与故障定位
-
-先运行 `python3 policy/doctor.py` 核对安装路径、配置和 Git 钩子，再按 [操作说明](docs/OPERATIONS.md) 分别检查内容、提交和推送入口。安装自检不能替代真实拦截验证；需要确认缺配置、缺名单和违规样本按设计返回非成功结果。
-
-`settings.json` 是工具钩子接线入口，`policy/` 是 Git 检查实现；更换安装位置时须一起核对，避免工具层有提示而 Git 层没有接上。
-
-<!-- repo-docs routing -->
-
-## 源码指南与文档站
-
-工具事件先检查即将写入的内容，Git 事件再检查实际提交和推送。两层调用同一个策略引擎；名单或执行依据不足时必须与“检查通过”区分。
-
-从[阅读路径](repo-docs/README.md)进入[一条真实主流程](repo-docs/walkthroughs/one-real-run.md)，再用[代码地图](repo-docs/code-map.md)定位改动。证据与未覆盖边界见[源码调查记录](repo-docs/references/source-evidence.md)。
-
-## 文档站
-
-文档站采用 VitePress 默认主题，依赖与业务项目分开安装。默认输出 `docs-site/.vitepress/dist/`；独立核验可在构建命令后加 `-- --outDir <仓库外绝对目录>`。指南正文只维护 `repo-docs/`，站点通过 include 读取；网页中的仓库源码链接显示为精确文件路径，不复制源码或本机资源。
-
-```sh
-pnpm --dir docs-site install --frozen-lockfile
-pnpm --dir docs-site run docs:dev -- --host 127.0.0.1
-pnpm --dir docs-site run docs:build
-```
+- **开源协议**：本项目基于 [GNU Affero General Public License v3.0](LICENSE)（`AGPL-3.0-only`）开源发布，是独立维护的开源防泄漏工具链，与 Claude Code 官方不构成隶属或背书关系。
+- **安全与贡献规范**：提交变更前请先阅读 [安全说明](SECURITY.md)、[贡献指南](CONTRIBUTING.md) 与 [协作约定](AGENTS.md)（涉及功能或文档站入口调整时需同步核对 `meta.json`）；切勿将本机 `private-seed.json`、`sanitize-map.json`、任何访问令牌或编译后的 `token-helper` 提交至版本控制仓库。
+- **独立社区工具免责**：按原样提供，请配合托管平台受保护分支与独立凭证管理使用。

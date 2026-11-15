@@ -1,43 +1,83 @@
 # Claude Code Antileak Hooks
 
-[中文完整说明](README.md) · [Chinese source guide](repo-docs/README.md)
+[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://cybernova2333.github.io/claude-code-antileak-hooks/en/) · License: `AGPL-3.0-only`
 
-Content, attribution and SSH-signature guardrails for agent-assisted work and Git. Tool hooks inspect intended writes early; Git hooks inspect actual commits and pushes. Both call a shared Python policy engine. These local checks reduce mistakes and accidental disclosure; a process controlling the machine can still bypass them.
+A two-layer leakage-prevention guardrail for Claude Code sessions and Git workflows: intercepts risky writes and credential reads offline before tool execution, then enforces private repo checks (`R1`), model/session regexes (`R2`), authorship (`R3`), private patterns (`R4`), agent branch blocking (`R5`), non-generic SSH commit signatures (`R6`), and redacted secret patterns (`R7`) at Git boundaries.
 
-## Setup and operations
+Supports Linux, macOS, and Windows UTF-8 environments. Protected branch and force-push controls stay on your hosting platform, and `Glob` tool calls (paths only, no file contents) are intentionally out of scope.
 
-Requires Bash, Python 3, Git and OpenSSH. Read [the operations guide](docs/OPERATIONS.md) before using `policy/bootstrap.sh`: it installs hooks and settings, rewrites installation paths and configures local sources. This documentation sync did not execute installation or modify hook code or Git configuration.
+## Core Capabilities & Flow
 
-After preparing a real installation:
+- **Defense in Depth**: `settings.json` wires six `PreToolUse` wrappers and one `SessionStart` hook for fast offline prevention, backed by four `--net`-enabled Git hooks (`pre-commit`, `pre-merge-commit`, `commit-msg`, `pre-push`).
+- **Clean Distribution Split**: `policy/policy.json` contains zero private repository names, internal hostnames, or credentials; private lists and `R4` patterns live solely in local `private-seed.json` (or `GUARD_SEED_B64`) and a `6h`-TTL cache, failing closed on absence or expiration.
+- **Fail-Closed & Redacted Verdicts**: Shared `policy/check.py` separates `pass`, `violation`, and `error`; passing wrappers exit `0` silently (never emitting `allow` that skips interactive permission prompts), and secrets are redacted to 8 characters.
+- **Direct SSH Verification Without `allowedSignersFile`**: Verifies commit `gpgsig` blocks via `ssh-keygen -Y check-novalidate` directly and supports `known_content` resigning exemptions anchored to real `git ls-remote` tips.
 
-```sh
-python3 policy/doctor.py
+The diagram below shows how Claude tool wrappers and Git hooks converge on the shared policy engine:
+
+```mermaid
+flowchart LR
+  Input["Claude PreToolUse / Git Hook"] --> Extract["Wrapper Extracts & Normalizes Payload"]
+  Extract -->|Parse Error| Block["Output Deny JSON / Exit 2 or Exit 1"]
+  Extract --> Engine["Policy Engine policy/check.py (R1-R7)"]
+  Cache["Dynamic Cache 6h TTL / --net Lookup"] --> Engine
+  Engine -->|violation / error| Block
+  Engine -->|exact pass| Pass["Silent Pass Exit 0 (No allow JSON)"]
 ```
 
-The source tree's default paths are deployment templates, not proof that this checkout is configured. Keep private seeds, lists, credentials and generated token helpers outside distributable packages.
+## Quick Start
 
-## Checks and boundaries
+Checked-in scripts contain template paths that must be unpacked and rewritten into `$GUARD` (default `$HOME/.claude/guardrails`) by `policy/bootstrap.sh`. Default local CLI setup and check:
 
-The engine separates `pass`, `violation` and `error`. Only `pass` succeeds; missing or stale dynamic lists do not count as a clean scan. Fast tool hooks do not use the network and reject malformed input. Successful tool checks exit silently, without an `allow` decision that could bypass host permissions. Git checks may explicitly refresh their data and validate real commit/push content, attribution and SSH signatures.
+```bash
+# 1. Install into $GUARD, rewrite paths, and wire global Git + Claude settings
+HOOK_PACKAGE_URL=file:///path/to/guardrails-package.zip bash policy/bootstrap.sh
 
-The content wrapper inspects `content`, `new_string` or `new_source`; it does not prove the entire existing file or repository is clean. Host timeouts can prevent a tool decision from returning. Doctor reports installation health and cannot replace interception tests or a full security audit.
+# 2. Deploy local-only seed & sanitize map (never committed to git)
+cp private-seed.json sanitize-map.json "$HOME/.claude/guardrails/"
+chmod 600 "$HOME/.claude/guardrails/private-seed.json" "$HOME/.claude/guardrails/sanitize-map.json"
 
-## Verification
-
-In an installed environment, `python3 policy/check.py content <neutral-test-file>` should return 0 only for `pass`. Review malformed event JSON, missing cache and denied content separately. No bundled full test suite is claimed, and no behavior checks were run during this documentation sync.
-
-## License
-
-[GPLv3](LICENSE). Existing operating instructions and changelog remain under `docs/`.
-
-## Documentation site
-
-The [Chinese source guide](repo-docs/README.md) follows one implemented workflow, then links to a code map and evidence audit. It does not claim complete architecture coverage.
-
-```sh
-pnpm --dir docs-site install --frozen-lockfile
-pnpm --dir docs-site run docs:dev -- --host 127.0.0.1
-pnpm --dir docs-site run docs:build
+# 3. Populate dynamic cache and run read-only verification (expects Overall: PASS)
+python3 "$HOME/.claude/guardrails/hooks/refresh-private.py"
+python3 "$HOME/.claude/guardrails/policy/doctor.py"
 ```
 
-The documentation site uses the default VitePress theme, with dependencies installed separately from the application. Output defaults to `docs-site/.vitepress/dist/`; append `-- --outDir <external-absolute-directory>` for an isolated build. Markdown remains in `repo-docs/` and is included by the site. Repository source links are shown as exact paths; source files and local resources are not published.
+| Deployment Mode / Workflow | Key Entry & Scope | Documentation |
+| --- | --- | --- |
+| Cloud / Container Setup Script | Set `PKG_URL_DEFAULT`, `GUARD_SEED_B64`, and read-only platform tokens | [Cloud Setup](docs-site/en/docs/index.md#mode-b-cloud--container-environment-setup-script) |
+| Extra Repos & `token-helper` | Target additional repos via `GUARD_REPOS` or compile XOR token wrapper | [Setup & Configuration](docs-site/en/docs/index.md) |
+| R6 Personal SSH Signing Setup | Generate a dedicated `ed25519` key and set `commit.gpgsign=true` | [Contracts & Signing Rules](docs-site/en/docs/contracts.md) |
+| Baseline Repository Audit | Scan HEAD or `--scan-history` with `hooks/scan-repo.py` | [Config Matrix & FAQ](docs-site/en/docs/configuration.md) |
+| Contributing to This Repo | Install the repo-local offline guard (`tools/repo_maintenance_guard.py`) | [Contributing Guide](CONTRIBUTING.md) |
+
+## Pre-Adoption FAQ
+
+**Q1: Does the distributable package expose private repo names or internal URLs?**  
+No. Private repository lists and `R4` patterns remain strictly inside local `private-seed.json` (or `GUARD_SEED_B64`) and local caches; `doctor.py` actively asserts zero reverse leakage into `policy.json`.
+
+**Q2: Can I point `git config core.hooksPath` straight at `hooks/git` inside a fresh git clone?**  
+No. Checked-in scripts contain hardcoded template paths that `policy/bootstrap.sh` must unpack and rewrite with `sed` to `$GUARD` before hooks will work reliably.
+
+**Q3: Does this replace protected branch rules or stop a privileged local user intentionally disabling hooks?**  
+No. `R5` intentionally leaves `main` protection and force-push blocking to hosting platform rulesets; local hooks catch accidental leaks early alongside mandatory remote protections.
+
+**Q4: Why do Claude tool hooks fail closed when the cache expires instead of hitting the network?**  
+If a hook exceeds its timeout while waiting on the network, Claude Code treats the killed hook as "no decision" and allows the tool call. Keeping `PreToolUse` hooks strictly offline prevents fail-open timeouts.
+
+**Q5: How does `hooks/` differ from `tools/repo_maintenance_guard.py`?**  
+`hooks/`, `hooks/git/`, and `policy/` are the deployable guardrail product, whereas `tools/repo_maintenance_guard.py` is an offline commit-format and blob guard solely for clones of this repository.
+
+## Reading Paths
+
+| Goal | Docs Site Section | Source Guide (`repo-docs/`) |
+| --- | --- | --- |
+| Install, configure seeds, & troubleshoot | [Setup & Deployment](docs-site/en/docs/index.md) · [Config Matrix & FAQ](docs-site/en/docs/configuration.md) | [Deployment & Checks](repo-docs/modules/deployment-and-checks.md) · [Private List Sync](repo-docs/modules/private-list-sync.md) |
+| Hook JSON contracts, R1–R7, & extensions | [Contracts & Extension FAQ](docs-site/en/docs/contracts.md) | [Policy Engine](repo-docs/modules/policy-engine.md) · [Hook Wrappers](repo-docs/modules/hook-wrappers.md) · [Glossary](repo-docs/glossary.md) |
+| Architecture diagram, walkthrough, & code map | [Architecture & Walkthrough](docs-site/en/docs/architecture.md) · [Code Map](docs-site/en/docs/code-map.md) | [One Real Run](repo-docs/walkthroughs/one-real-run.md) · [Code Map](repo-docs/code-map.md) |
+| Migration history & source audit | [Changelog & Migration](docs-site/en/docs/changelog.md) | [Change Log](repo-docs/change-log.md) · [Source Evidence](repo-docs/references/source-evidence.md) · [Quality Review](repo-docs/references/quality-review.md) |
+
+## License & Security
+
+- **License**: Released under the [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`). This is an independent open-source project and is not affiliated with or endorsed by Anthropic.
+- **Security & Contributions**: Review [Security Policy](SECURITY.md), [Contributing Guide](CONTRIBUTING.md), and [Agent Conventions](AGENTS.md) (keep `meta.json` aligned if capabilities or doc URLs change); never commit `private-seed.json`, `sanitize-map.json`, token files, or compiled `token-helper` binaries.
+- **No Warranty**: Provided as-is under AGPLv3; pair local hooks with remote protected-branch rulesets and proper credential hygiene.

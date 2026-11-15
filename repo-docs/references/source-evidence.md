@@ -1,36 +1,40 @@
 # 源码证据审计
 
-这是固定审计记录，记录 2026-10-29 的两遍调查；行为解释由主流程页承载，源码导航由代码地图承载。
+这是固定审计记录，记录对当前源码、策略配置与维护工具的多遍核查结果；行为解释由主流程页承载，源码导航由代码地图承载。
 
 ## 遍历记录
 
 | 遍历 | 实际检查 | 得到的依据 |
 | --- | --- | --- |
-| Pass 1 | 仓库目录、Git 状态、父级及 root AGENTS/CLAUDE、README、`settings.json`、`hooks/`、`policy/`、原有 `docs/OPERATIONS.md` 与许可证 | 确定真实入口、运行命令及现存文档；README 只作线索 |
-| Pass 2 | `hooks/forbid-content.sh`、`_lib.sh`，`policy/check.py` 的缓存状态/三态/主入口，以及 `policy/doctor.py` 的实际检查项 | 追踪主路径的输入、输出与失败分支，并对照测试断言 |
+| Pass 1 | 仓库目录树、Git 状态、配置与入口文件（根 `settings.json`、`meta.json`、`AGENTS.md`、`CONTRIBUTING.md`、`SECURITY.md`） | 区分“安装到宿主与全局 Git 的防泄漏产品（`hooks/` + `policy/`）”与“本仓库本地维护守卫（`tools/`）”两套独立入口 |
+| Pass 2 | 逐行核对 `hooks/_lib.sh`、`hooks/forbid-*.sh`、`hooks/git/*`、`policy/check.py`、`policy/policy.json` | 确认输入提取、三态输出（`pass` / `violation` / `error`）、`--net` 隔离、R1–R7 规则、SSH 验签与 `resign_exempt` 重签豁免 |
+| Pass 3 | 逐行核对 `hooks/refresh-private.py`、`hooks/resolve-private.py`、`hooks/scan-repo.py`、`policy/bootstrap.sh`、`policy/install-settings.py`、`policy/doctor.py`、`policy/build-secure-token.py`、`policy/token-helper.cpp`、`policy/msgcb-hygiene.py`、`tools/repo_maintenance_guard.py` | 确认多来源名单并集与完整性兜底、单名即时解析与负缓存、路径改写与部署自检、XOR 凭证编译辅助与本地维护守卫边界 |
 
 ## 覆盖与排除
 
-覆盖：Write/Edit 工具事件到本地策略 content 判定与拒绝结果。Git 签名密码学验证、远端提交枚举、历史重签豁免、名单网络刷新和安装脚本仅索引，不作完整安全审计；没有安装或更改任何安全钩子。
+覆盖范围包括 `hooks/`、`hooks/git/`、`policy/`、`tools/` 及根目录 `settings.json` 的真实实现与交互逻辑。
 
+以下区域属于相邻或外部部署边界，本页仅标明边界、不替代运行时安全审计：`docs-site/` 为文档站发布载体；`$GUARD/private-seed.json`、`$GUARD/sanitize-map.json`、`private-repos.json` 与编译后的 `token-helper` 为部署侧本地产物，不随仓库分发。历史未在本地安装环境跑通的真实拦截回归、宿主外部进程超时行为，以及远程私有仓 API 实时连通性在本轮未执行端到端压测。
 
 ## 声明与证据
 
 | Claim | Evidence | Confidence | Caveat | Used by |
 | --- | --- | --- | --- | --- |
-| 工具事件只检查新增文本 | [内容包装](../../hooks/forbid-content.sh) 搜索 `tool_input`、`new_source` | 已确认 | 不代表存量仓库全部通过 | 主流程 Step 1 |
-| 快速工具路径不启用网络 | [辅助](../../hooks/_lib.sh)、[内容包装](../../hooks/forbid-content.sh) | 已确认 | 缓存过期需独立刷新 | 主流程 Step 2 |
-| error 与 violation 都映射拒绝 | [引擎主入口](../../policy/check.py)、[包装](../../hooks/forbid-content.sh) | 已确认 | 配置装载可在主处理前失败，包装仍须拒绝 | 主流程 Step 3–4 |
-| 通过保持安静，不输出 allow | [公共退出辅助](../../hooks/_lib.sh) 搜索 `pass`、`deny` | 已确认 | 宿主超时仍可能无决定 | 主流程 Step 4 |
-| doctor 检查部署状态 | [自检](../../policy/doctor.py) | 已确认 | 未运行；也不等于拦截测试 | 主流程 Step 5 |
+| Write、Edit、NotebookEdit 只提取待写文本并静默放行或拒绝 | [内容拦截脚本](../../hooks/forbid-content.sh) 读取 `content`、`new_string`、`new_source`；[公共辅助](../../hooks/_lib.sh) `pass` 与 `deny` | 已确认 | 仅审查本次工具增量内容，不证明文件存量干净 | 主流程 Step 1、Step 4；[钩子包装模块](../modules/hook-wrappers.md) |
+| Claude 工具链钩子禁止联网，通过不返回 `allow` 避免跳过权限确认 | [公共辅助](../../hooks/_lib.sh) `engine_content` 不带 `--net`；[自检脚本](../../policy/doctor.py) 检查 `.sh` 不含 `--net` 与 `permissionDecision` | 已确认 | 宿主超过 `timeout`（30s/120s）仍可能按无决策放行 | 主流程 Step 2–4；[钩子包装模块](../modules/hook-wrappers.md) |
+| 策略引擎区分 `pass`、`violation`、`error` 三态，仅精确 `pass` 返回退出码 0 | [策略引擎](../../policy/check.py) `full_check`、`private_check`、`main` | 已确认 | 直接在未部署克隆目录执行可能因默认路径未改写而报错 | 主流程 Step 2–3；[策略引擎模块](../modules/policy-engine.md) |
+| Read/Grep 路径拦截统一 Windows 盘符分隔符与 `realpath` 并放行公钥类白名单 | [读路径拦截脚本](../../hooks/forbid-read-path.sh) 匹配 `[A-Za-z]:[\\/]` 与白名单 `case` | 已确认 | 相对路径不在该脚本拦截，仍由 Bash 命令扫描覆盖 | [钩子包装模块](../modules/hook-wrappers.md) |
+| Git 层对新推送提交采用 `ssh-keygen -Y check-novalidate` 验签并支持重签豁免 | [策略引擎](../../policy/check.py) `commit_signature`、`known_content`、`cmd_push`；[预提交钩子](../../hooks/git/pre-commit) | 已确认 | 不验证公钥是否在远程托管平台登记；`resign_exempt=false` 可关闭豁免 | [策略引擎模块](../modules/policy-engine.md)；[钩子包装模块](../modules/hook-wrappers.md) |
+| 动态名单刷新执行来源并集、owner 覆盖校验与非空兜底，失败时不回写缓存 | [名单刷新脚本](../../hooks/refresh-private.py) 完整性校验与原子 `os.replace` | 已确认 | 缺失私有种子时 R4 业务正则为空；单靠种子不会自动纳入新建私有仓 | [名单同步模块](../modules/private-list-sync.md) |
+| `bootstrap.sh` 通过 `sed` 改写模板路径并写入全局 Git 与仓库/用户级设置 | [铺设脚本](../../policy/bootstrap.sh) 路径改写与 [设置注入脚本](../../policy/install-settings.py) | 已确认 | 本轮未运行安装或更改本机 Git 配置；云端只读仓库级设置 | [部署自检模块](../modules/deployment-and-checks.md) |
+| 仓库自身维护守卫由 `tools/` 离线执行，与防泄漏产品钩子相互独立 | [维护守卫脚本](../../tools/repo_maintenance_guard.py) `staged`、`message_problems`、`pushed` | 已确认 | 仅检查 Git 对象与 8 MiB 内 blob，不替代业务安全审计 | [代码地图](../code-map.md) |
 
 ## 证伪检查与读者下一问
 
-证伪检查：若包装在解析失败时放行、把 error 当 pass、通过时输出 allow，或工具快速路径调用网络刷新，就会推翻本指南的边界模型。缺少已安装环境的行为运行证据，因此这里不评价实际防护覆盖率。
+证伪检查：若 `hooks/forbid-content.sh` 在解析 JSON 失败时退出 0、在通过时输出 `permissionDecision=allow`、在快速路径中传递 `--net`，或者 `policy/check.py` 在缓存缺失/损坏时返回 `pass`，则说明本指南关于 fail-closed 与离线隔离的边界模型已经失效。
 
-读者下一问：真实 push 如何验证 SSH 签名和只扫描新增提交？需独立追踪 `cmd_push`、`commit_signature` 和 Git 事件包装，本轮未作密码学或提交枚举审计。
+读者下一问：如果在未运行 `policy/bootstrap.sh` 的本地克隆里直接挂载 `hooks/git`，为什么 `policy/doctor.py` 或 Git 钩子会报错？请接着查看[部署安装与自检机制](../modules/deployment-and-checks.md)中的路径改写与模板边界说明。
 
 ## 验证边界
 
-本轮执行 `validate_repo_docs.py` 和 MkDocs 构建，退出码及完整输出保存在独立维护报告中；不将静态阅读当作业务测试通过。没有部署、生产验收或历史改写。
-所有 `../../` 源码链接按当前磁盘核对；独立站点没有这些仓库文件，MkDocs 对此记 INFO，站内链接仍正常检查。未解析、展示或引用真实凭据和运行时数据库内容；现有未提交文件仅作本地摘要保全。
+本轮仅通过静态源码核对、`validate_repo_docs.py` 结构校验与 VitePress 文档站静态构建验证文档准确性；未执行 `policy/bootstrap.sh` 安装、未刷新线上私有仓缓存、未改动全局 `~/.claude/settings.json` 或本机 Git 签名配置。

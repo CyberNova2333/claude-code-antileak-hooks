@@ -1,26 +1,17 @@
 # 指南变更记录
 
-## 2026-10-29：建立主流程指南并对齐文档入口
+## 2026-11-15：升级为 Standard 全仓库指南并重置文档体系
 
-- 触发：用户授权 widened docs sync；同步决策为 `foreground patch`，在共享工作树完成指定文档层。
-- 建立阅读路径、主流程、代码地图、两遍源码证据与阅读质量审计；范围限定为 Write/Edit 工具事件到本地策略 content 判定与拒绝结果。
-- 保留中文 README 的现有正确内容，补齐英文入口和文档站操作；AGENTS 成为规则单一来源，CLAUDE 简短引用。
-- 新建 MkDocs 1.6.1 内置主题站点；验证输出写入仓库外目录，保留业务构建产物。
-- 验证：`validate_repo_docs.py --lite` 与 `mkdocs build --strict` 均退出 0；源码链接 INFO 和保留提示见独立维护报告。未跑业务测试，不代表生产验证。
-- 边界：Git 签名密码学验证、远端提交枚举、历史重签豁免、名单网络刷新和安装脚本仅索引，不作完整安全审计；没有安装或更改任何安全钩子。
+- **升级触发**：执行文档体系全量重置，明确划分职责边界——根目录 `README.md` 与 `README.en.md` 收敛为 6 段式项目门户；`docs-site/` 按 Tier B 重构为中英双语三阶段指南；`repo-docs/` 从 Lite 模式升级为覆盖全仓库的 Standard 指南包。
+- **结构补齐**：保留并审校主流程 [一次工具写入怎样得到策略判定](walkthroughs/one-real-run.md)，新建四个专题模块页（[策略引擎](modules/policy-engine.md)、[双层钩子包装](modules/hook-wrappers.md)、[动态私有名单同步](modules/private-list-sync.md)、[部署安装与自检](modules/deployment-and-checks.md)），补全覆盖 `hooks/`、`hooks/git/`、`policy/` 与 `tools/` 的[代码地图](code-map.md)，并新增[项目术语表](glossary.md)及更新[源码证据审计](references/source-evidence.md)与[阅读质量审计](references/quality-review.md)。
+- **文档迁移与清理**：确认原根目录下的运维参考与历史变更文档未被任何钩子、测试脚本或 CI 工作流直接引用；将其核实无误的部署矩阵、R1–R7 细节（同步修正原手册将 `PreToolUse` 数量写为 5 个而实际 `settings.json` 与 `install-settings.py` 为 6 个的偏差）及 rev4–rev4.4 演进决策迁移整合到 `docs-site/` 与 `repo-docs/` 后移除原孤立文件。
+- **内容卫生**：严格遵循仓库与安全边界要求，不在任何提交文档中出现特定内部平台标识、特定模型档位版本号或失效本机绝对路径；多来源聚合说明统一使用中性功能表述并指引维护者查阅对应脚本与配置源码。
+- **验证边界**：完成 `validate_repo_docs.py` 全量结构校验与 `docs-site` VitePress 静态构建；未在本机执行 `policy/bootstrap.sh` 安装、远端私有仓刷新或修改本机全局 Git/Claude 配置。
 
-Synced through 49d6e90e1e2eceef4894d08e92c0a7c6f65358b5
+Synced through 9ff000c216e6ddd20c72d8e0554945115e5b0c6a
 
-## 统一维护复核（2026-10-29）
+## 2026-10-29：建立初版指南、统一维护复核与站点恢复默认主题
 
-补齐中英 README 入口、贡献与安全说明；AGENTS 为规范正文，CLAUDE 为引用入口。补充钩子检查暂存内容、提交标题及推送新增历史，保留项目原有检查；安装步骤与边界见根 SECURITY 和 CONTRIBUTING。独立站点采用 VitePress 默认主题，源码链接在网页中保留为精确路径。
-
-本地分支规范化了 12 条提交信息；重建对象均已验证 SSH 签名，文件树、署名、日期和父图保持对应。原引用有本机备份，远端与标签未改。
-
-文档结构校验和站点构建均退出 0；共用护栏的 9 项隔离测试通过。业务测试、生产部署和远端发布未因此视为通过。大文件扫描边界见 SECURITY。
-
-Synced through 49d6e90e1e2eceef4894d08e92c0a7c6f65358b5；源码树与原锚点对应，未提交实现仍按工作树单列。
-
-## 文档站恢复默认主题（2026-10-29）
-
-按用户要求统一使用 VitePress 默认主题，移除额外配色、字体、圆角和入场动效。指南正文、源码定位及导航保留；文档依赖与业务依赖分开。新建站点从 MkDocs 迁移为 VitePress，既有两个 VitePress 站点使用原生主题入口。
+- 建立初版 `repo-docs/` 主流程、代码地图、双遍源码证据与质量审计记录，同步对齐根 `AGENTS.md`、`CONTRIBUTING.md`、`SECURITY.md` 与双语 `README` 入口，并由仓库本地离线维护守卫（`tools/repo_maintenance_guard.py`）接管常规提交前扫描与 Conventional Commits 校验。
+- 将文档发布载体从 MkDocs 迁移为 VitePress 默认主题静态站（位于 `docs-site/`），配置 `.vitepress/guide-links.mts` 将正文中的仓库源码链接转译为稳定文本定位标识，避免静态站产生悬空相对链接。
+- 历史锚点曾记录至 `49d6e90e1e2eceef4894d08e92c0a7c6f65358b5`；该初版仅覆盖 `Write` / `Edit` 内容拦截的 Lite 范围，现已由 2026-11-15 的全仓库 Standard 指南完整接替。
