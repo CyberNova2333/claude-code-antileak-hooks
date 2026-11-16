@@ -15,6 +15,9 @@ hero:
     - theme: alt
       text: 架构全景与源码导览
       link: /docs/architecture
+    - theme: alt
+      text: GitHub 仓库
+      link: https://github.com/CyberNova2333/claude-code-antileak-hooks
 
 features:
   - title: 工具层与 Git 层双保险
@@ -24,16 +27,6 @@ features:
   - title: 三态 Fail-Closed 与脱敏回显
     details: 策略引擎严格区分 pass、violation 与 error；放行保持安静不跳过宿主权限确认，命中凭据仅回显前 8 位与长度，并强制校验非通用 SSH 签名。
 ---
-
-## 按身份/目标快速入口
-
-| 你的身份与目标 | 推荐起点 | 核心内容 |
-| --- | --- | --- |
-| 初次部署到本机 CLI 或云端容器 | [概览、边界与多环境部署](/docs/) | 安装依赖、`bootstrap.sh` 铺设流程与只读自检 `doctor.py` |
-| 需要调整设置、私有种子或排查误报/超时 | [配置矩阵、私有种子与排错 FAQ](/docs/configuration) | `policy.json` 参数、多来源聚合逻辑、常见报错与 `known_content` 边界 |
-| 需要接入自定义规则或核对 JSON 输入输出契约 | [钩子协议、R1–R7 规则与扩展 FAQ](/docs/contracts) | `PreToolUse`/`SessionStart` 载荷、`check.py` CLI 契约与规则定制要点 |
-| 想看懂整体架构、主流程走读或查找源码目录 | [架构全景与主流程走读](/docs/architecture) | 交互式流程图、工具写入走读及 [代码地图](/docs/code-map) |
-| 从旧版升级或核对架构决策演进 | [版本变更与迁移记录](/docs/changelog) | `rev4` 至 `rev4.4` 破坏性调整、Windows GBK 修复与跨平台迁移注意 |
 
 ## 架构全景图
 
@@ -57,3 +50,12 @@ features:
 python3 policy/doctor.py
 # 未铺设过的源码目录预期输出 Overall: DEGRADED；铺设且刷新缓存后预期 Overall: PASS
 ```
+
+## 文档分层导航
+
+::: tip 按照读者需求快速跳转
+- **初次部署到本机 CLI 或云端容器**：阅读 [概览、边界与多环境部署](/docs/)，了解安装依赖、`bootstrap.sh` 铺设流程与只读自检 `doctor.py`；
+- **需要调整设置、私有种子或排查误报/超时**：查阅 [配置矩阵、私有种子与排错 FAQ](/docs/configuration)，核对 `policy.json` 参数、多来源聚合逻辑、常见报错与 `known_content` 边界；
+- **需要接入自定义规则或核对 JSON 输入输出契约**：查阅 [钩子协议、R1–R7 规则与扩展 FAQ](/docs/contracts)，获取 `PreToolUse`/`SessionStart` 载荷、`check.py` CLI 契约与规则定制要点；
+- **想看懂整体架构、主流程走读或查找源码目录**：查阅 [架构全景与主流程走读](/docs/architecture)、[代码地图与维护守卫区分](/docs/code-map) 与 [版本变更与迁移记录](/docs/changelog)。
+:::

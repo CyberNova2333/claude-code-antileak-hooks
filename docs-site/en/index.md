@@ -15,6 +15,9 @@ hero:
     - theme: alt
       text: Architecture & Internals
       link: /en/docs/architecture
+    - theme: alt
+      text: GitHub Repo
+      link: https://github.com/CyberNova2333/claude-code-antileak-hooks
 
 features:
   - title: PreToolUse + Git Defense in Depth
@@ -24,16 +27,6 @@ features:
   - title: Fail-Closed & Redacted Verdicts
     details: The policy engine emits pass, violation, or error; wrappers never emit allow (preserving interactive permission prompts) and mask secrets to the first 8 characters.
 ---
-
-## Quick Routes by Role & Goal
-
-| Role / Goal | Start Here | What You Get |
-| --- | --- | --- |
-| Installing into local CLI or cloud container environments | [Overview, Scope & Deployment](/en/docs/) | Runtime prerequisites, `bootstrap.sh` path rewriting, and read-only `doctor.py` checks |
-| Tuning `policy.json`, private seeds, or fixing errors/false positives | [Config Matrix, Seeds & Troubleshooting FAQ](/en/docs/configuration) | Settings matrix, multi-source list sync, `resign_exempt` boundaries, and troubleshooting FAQ |
-| Inspecting hook stdin/stdout JSON or extending rules | [Hook Protocols, R1–R7 & Extension FAQ](/en/docs/contracts) | `PreToolUse`/`SessionStart` JSON contract, `check.py` CLI semantics, and custom rule FAQ |
-| Understanding internals or navigating repository files | [Architecture & Real-Run Walkthrough](/en/docs/architecture) | Interactive diagram, write-hook walkthrough, and [Code Map](/en/docs/code-map) |
-| Upgrading from rev3/rev4 releases or reviewing design decisions | [Changelog & Migration Guide](/en/docs/changelog) | Breaking changes across rev4–rev4.4, UTF-8 Windows fixes, and security boundaries |
 
 ## Interactive Architecture Diagram
 
@@ -57,3 +50,12 @@ The source tree ships with template paths that must be rewritten by `policy/boot
 python3 policy/doctor.py
 # Uninstalled clones report Overall: DEGRADED; a deployed environment reports Overall: PASS
 ```
+
+## Documentation Guide
+
+::: tip Quick Navigation by Role & Goal
+- **Installing into local CLI or cloud container environments**: Start with [Overview, Scope & Deployment](/en/docs/) for runtime prerequisites, `bootstrap.sh` path rewriting, and read-only `doctor.py` checks;
+- **Tuning `policy.json`, private seeds, or fixing errors/false positives**: Read [Config Matrix, Seeds & Troubleshooting FAQ](/en/docs/configuration) for settings, multi-source list sync, and `resign_exempt` boundaries;
+- **Inspecting hook stdin/stdout JSON or extending rules**: See [Hook Protocols, R1–R7 & Extension FAQ](/en/docs/contracts) for `PreToolUse`/`SessionStart` JSON contracts, `check.py` CLI semantics, and custom rule FAQ;
+- **Understanding internals or upgrading from rev3/rev4**: Explore [Architecture & Real-Run Walkthrough](/en/docs/architecture), [Code Map](/en/docs/code-map), and [Changelog & Migration Guide](/en/docs/changelog).
+:::

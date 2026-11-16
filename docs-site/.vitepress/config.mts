@@ -37,20 +37,20 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: '1. 起步与配置部署',
+            text: '起步与配置部署',
             items: [
               { text: '概览、边界与多环境部署', link: '/docs/' },
               { text: '配置矩阵、私有种子与排错 FAQ', link: '/docs/configuration' },
             ],
           },
           {
-            text: '2. 接口与扩展契约',
+            text: '接口与扩展契约',
             items: [
               { text: '钩子协议、R1–R7 规则与扩展 FAQ', link: '/docs/contracts' },
             ],
           },
           {
-            text: '3. 原理与源码导览（含决策迁移）',
+            text: '原理与源码导览',
             items: [
               { text: '架构全景与主流程走读', link: '/docs/architecture' },
               { text: '代码地图与维护守卫区分', link: '/docs/code-map' },
@@ -79,20 +79,20 @@ export default defineConfig({
         ],
         sidebar: [
           {
-            text: '1. Setup & Configuration',
+            text: 'Setup & Configuration',
             items: [
               { text: 'Overview, Scope & Deployment', link: '/en/docs/' },
               { text: 'Config Matrix, Seeds & Troubleshooting FAQ', link: '/en/docs/configuration' },
             ],
           },
           {
-            text: '2. Contracts & Extensions',
+            text: 'Contracts & Extensions',
             items: [
               { text: 'Hook Protocols, R1–R7 & Extension FAQ', link: '/en/docs/contracts' },
             ],
           },
           {
-            text: '3. Architecture, Code & Migration',
+            text: 'Architecture, Code & Migration',
             items: [
               { text: 'Architecture & Real-Run Walkthrough', link: '/en/docs/architecture' },
               { text: 'Code Map & Repo Guard Separation', link: '/en/docs/code-map' },
