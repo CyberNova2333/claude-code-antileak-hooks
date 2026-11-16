@@ -10,14 +10,14 @@ hero:
       text: 起步与配置部署
       link: /docs/
     - theme: alt
+      text: API 与组件参考
+      link: /api-reference/
+    - theme: alt
       text: 接口与扩展契约
       link: /docs/contracts
     - theme: alt
       text: 架构全景与源码导览
       link: /docs/architecture
-    - theme: alt
-      text: GitHub 仓库
-      link: https://github.com/CyberNova2333/claude-code-antileak-hooks
 
 features:
   - title: 工具层与 Git 层双保险
@@ -27,6 +27,18 @@ features:
   - title: 三态 Fail-Closed 与脱敏回显
     details: 策略引擎严格区分 pass、violation 与 error；放行保持安静不跳过宿主权限确认，命中凭据仅回显前 8 位与长度，并强制校验非通用 SSH 签名。
 ---
+
+::: info 它能做到什么程度（已实现能力）
+- 在 Claude Code 工具调用前通过 `6` 个离线 `PreToolUse` 包装器拦截高危写入、Secret 读取与护栏篡改（放行安静 `exit 0`，绝不输出 `permissionDecision: "allow"`）；配合 `SessionStart` 自动刷新动态名单。
+- 在 Git `pre-commit`、`pre-merge-commit`、`commit-msg` 与 `pre-push`（`--net`）统一强制 `R1–R7`、`6h` TTL 缓存、非通用 `ed25519` SSH 签名直验（`ssh-keygen -Y check-novalidate`）与基于真实 `ls-remote` 的 `known_content` 重签豁免。
+- 通过 [API 与组件参考](/api-reference/) 可按分类查阅每个 Hook 包装器、`policy/check.py`、`refresh-private.py`、`bootstrap.sh`、`doctor.py` 与 `scan-repo.py` 的参数契约与示例。
+:::
+
+::: warning 明确不做什么（边界与硬限制）
+- **不替代平台受保护分支与强推拦截**：规则 `R5` 禁止推送至 `claude/`、`codex/` 等 `15` 个 Agent 分支前缀，但 `main` 分支保护和强推阻断有意交给 CNB / GitHub Rulesets。
+- **不覆盖仅列举文件名的 `Glob` 调用**：`forbid-read-path.sh` 仅拦截可返回文件正文的 `Read` / `Grep`；高权限本机用户若绕过 Shell 提醒，最终强制防线为 Git 层钩子与远端权限隔离。
+- **禁止直接将源码克隆目录作为运行目录**：源内脚本硬编码 `/root/.claude/...` 模板路径，必须经 `policy/bootstrap.sh` 改写至 `$GUARD`（且产品包钩子与本仓库维护脚本 `tools/repo_maintenance_guard.py` 严格分离）。
+:::
 
 ## 架构全景图
 

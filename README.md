@@ -1,10 +1,19 @@
 # Claude Code Antileak Hooks
 
-[简体中文](README.md) · [English](README.en.md) · [在线文档站](https://cybernova2333.github.io/claude-code-antileak-hooks/) · License: `AGPL-3.0-only`
+[简体中文](README.md) · [English](README.en.md) · [在线文档站](https://cybernova2333.github.io/claude-code-antileak-hooks/) · [API 与组件参考](docs-site/api-reference/index.md) · License: `AGPL-3.0-only`
 
 面向 Claude Code 会话与 Git 工作流的双层防泄漏护栏套件：在 Agent 工具调用前离线拦截违规写入与敏感文件读取，并在 Git 提交、合并和推送边界强制核验私有名单（R1）、模型与会话标记（R2）、作者署名（R3）、内部业务正则（R4）、Agent 分支（R5）、非通用 SSH 提交签名（R6）及凭据格式（R7）。
 
-适用环境覆盖 Linux、macOS 与中文 Windows（全链路 UTF-8 编码兼容）；本套件不接管托管平台的受保护分支规则，也不拦截仅返回文件名的 `Glob` 工具调用。
+## 能力边界与明确非目标
+
+- **能做到什么程度**：
+  - 在 Claude Code 会话通过 `6` 个离线 `PreToolUse`（`Write|Edit|NotebookEdit`、`Bash`、`Read|Grep`）+ `1` 个 `SessionStart` 自动刷新动态名单，放行时仅静默退出 `0`（不返回 `permissionDecision: "allow"`）；
+  - 在 Git `pre-commit`、`pre-merge-commit`、`commit-msg` 与 `pre-push` 携带 `--net` 执行全量 `R1–R7` 核验、直接 SSH `gpgsig` 密码学验签及以真实远端 `ls-remote` 为锚点的 `known_content` 重签豁免；
+  - 随包分发的 `policy/policy.json` 不含任何私有仓名与业务域名正则，缺失或缓存过期统一 fail-closed 返回 `error`（退出 `1`）。
+- **明确不做什么**：
+  - **不替代托管平台分支保护**：`R5` 负责拦阻向 `15` 个 Agent 分支前缀推送，`main` 保护与强推禁止交给 GitHub Rulesets / CNB 分支规则；
+  - **不拦截 `Glob` 路径枚举**，也不防御具备系统 `root` 权限用户的刻意绕过（`tools/repo_maintenance_guard.py` 仅服务于维护本仓库克隆自身，与产品钩子严格隔离）；
+  - **不可直接运行未铺设克隆源码**：必须经 `policy/bootstrap.sh` 改写 `/root/.claude/...` 模板路径至 `$GUARD`；详细参数与示例见 [API 与组件参考](docs-site/api-reference/index.md)。
 
 ## 核心能力与拦截流转
 
@@ -72,7 +81,7 @@ python3 "$HOME/.claude/guardrails/policy/doctor.py"
 | 阅读目标 | 用户文档站入口 | 仓库源码指南入口 |
 | --- | --- | --- |
 | 安装部署、环境变量矩阵与常见排错 | [起步与配置部署](docs-site/docs/index.md) · [配置与排错](docs-site/docs/configuration.md) | [部署安装与自检模块](repo-docs/modules/deployment-and-checks.md) · [动态名单同步模块](repo-docs/modules/private-list-sync.md) |
-| 钩子 JSON 契约、R1–R7 规则与扩展 | [接口与扩展契约](docs-site/docs/contracts.md) | [策略引擎模块](repo-docs/modules/policy-engine.md) · [双层钩子包装模块](repo-docs/modules/hook-wrappers.md) · [术语表](repo-docs/glossary.md) |
+| 钩子 JSON 契约、R1–R7 规则与扩展 | [接口与扩展契约](docs-site/docs/contracts.md) · [API 与组件参考](docs-site/api-reference/index.md) | [策略引擎模块](repo-docs/modules/policy-engine.md) · [双层钩子包装模块](repo-docs/modules/hook-wrappers.md) · [术语表](repo-docs/glossary.md) |
 | 架构图、真实调用走读与代码导航 | [架构全景与主流程](docs-site/docs/architecture.md) · [代码地图](docs-site/docs/code-map.md) | [一次真实写入判定](repo-docs/walkthroughs/one-real-run.md) · [代码地图](repo-docs/code-map.md) |
 | 版本迁移决策与源码审计记录 | [版本变更与迁移](docs-site/docs/changelog.md) | [指南变更记录](repo-docs/change-log.md) · [源码证据审计](repo-docs/references/source-evidence.md) · [阅读质量审计](repo-docs/references/quality-review.md) |
 

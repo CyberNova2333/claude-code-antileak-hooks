@@ -7,6 +7,7 @@
 - **In scope**: Offline pre-execution blocking of writes (`Write` / `Edit` / `NotebookEdit`), sensitive file reads (`Read` / `Grep` and `Bash`), bypass flags (`--no-verify`, `--no-gpg-sign`, `core.hooksPath` edits), and agent branch pushes (`claude/...`, `codex/...`, etc.); plus online (`--net`) Git verification at `pre-commit`, `pre-merge-commit`, `commit-msg`, and `pre-push` covering private repository names (`R1`), model/session markers (`R2`), non-provider authorship and `Co-authored-by:` trailers (`R3`), private regexes (`R4`), agent branch push blocking (`R5`), non-generic SSH commit signatures (`R6`), and masked secret regexes (`R7`).
 - **Out of scope**: Does not enforce protected branch or force-push rules (delegated to hosting platform rulesets); does not hook `Glob` (which returns paths rather than file contents); advisory shell checks cannot stop a privileged local user who bypasses hooks, so the Git pre-push gate and remote branch protections remain the strong enforcement boundary.
 - **Product hooks vs. repo maintenance guard**: `hooks/`, `hooks/git/`, and `policy/` form the installable product package, whereas `tools/repo_maintenance_guard.py` and `tools/repo_maintenance_hooks/` are offline maintenance hooks solely for committing to this repository clone.
+- **Interactive API & Component Reference**: Inspect per-hook parameters, `check.py` exit codes, and CLI examples in [API & Component Reference](/en/api-reference/).
 
 ## Prerequisites
 

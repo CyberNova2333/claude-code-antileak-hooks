@@ -1,10 +1,19 @@
 # Claude Code Antileak Hooks
 
-[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://cybernova2333.github.io/claude-code-antileak-hooks/en/) · License: `AGPL-3.0-only`
+[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://cybernova2333.github.io/claude-code-antileak-hooks/en/) · [API & Component Reference](docs-site/en/api-reference/index.md) · License: `AGPL-3.0-only`
 
 A two-layer leakage-prevention guardrail for Claude Code sessions and Git workflows: intercepts risky writes and credential reads offline before tool execution, then enforces private repo checks (`R1`), model/session regexes (`R2`), authorship (`R3`), private patterns (`R4`), agent branch blocking (`R5`), non-generic SSH commit signatures (`R6`), and redacted secret patterns (`R7`) at Git boundaries.
 
-Supports Linux, macOS, and Windows UTF-8 environments. Protected branch and force-push controls stay on your hosting platform, and `Glob` tool calls (paths only, no file contents) are intentionally out of scope.
+## Capability Scope & Explicit Non-Goals
+
+- **How far it goes (Delivered)**:
+  - Runs `6` offline `PreToolUse` wrappers (`Write|Edit|NotebookEdit`, `Bash`, `Read|Grep`) plus `1` `SessionStart` private list sync; passing wrappers exit `0` silently without emitting `permissionDecision: "allow"`.
+  - Runs `4` `--net`-enabled Git hooks (`pre-commit`, `pre-merge-commit`, `commit-msg`, `pre-push`) enforcing `R1–R7`, direct `ssh-keygen -Y check-novalidate` commit verification, and `ls-remote`-anchored `known_content` resigning exemptions.
+  - Ships clean `policy/policy.json` (zero private names/domains) and fails closed as `error` (exit `1`) when caches or credentials are missing or stale.
+- **What it explicitly does NOT do**:
+  - **Does not replace hosting platform rulesets**: `R5` blocks `15` agent branch prefixes, leaving `main` protection and force-push blocking to GitHub/CNB server rules.
+  - **Excludes `Glob` filename listings** and cannot defeat a privileged local `root` user intentionally bypassing shell hooks (`tools/repo_maintenance_guard.py` is strictly for maintaining this clone, separate from user guardrails).
+  - **Cannot run directly from a raw git clone**: `/root/.claude/...` templates must be rewritten to `$GUARD` via `policy/bootstrap.sh`; full wrapper/CLI contracts are documented in [API & Component Reference](docs-site/en/api-reference/index.md).
 
 ## Core Capabilities & Flow
 
@@ -72,7 +81,7 @@ If a hook exceeds its timeout while waiting on the network, Claude Code treats t
 | Goal | Docs Site Section | Source Guide (`repo-docs/`) |
 | --- | --- | --- |
 | Install, configure seeds, & troubleshoot | [Setup & Deployment](docs-site/en/docs/index.md) · [Config Matrix & FAQ](docs-site/en/docs/configuration.md) | [Deployment & Checks](repo-docs/modules/deployment-and-checks.md) · [Private List Sync](repo-docs/modules/private-list-sync.md) |
-| Hook JSON contracts, R1–R7, & extensions | [Contracts & Extension FAQ](docs-site/en/docs/contracts.md) | [Policy Engine](repo-docs/modules/policy-engine.md) · [Hook Wrappers](repo-docs/modules/hook-wrappers.md) · [Glossary](repo-docs/glossary.md) |
+| Hook JSON contracts, R1–R7, & extensions | [Contracts & Extension FAQ](docs-site/en/docs/contracts.md) · [API & Component Reference](docs-site/en/api-reference/index.md) | [Policy Engine](repo-docs/modules/policy-engine.md) · [Hook Wrappers](repo-docs/modules/hook-wrappers.md) · [Glossary](repo-docs/glossary.md) |
 | Architecture diagram, walkthrough, & code map | [Architecture & Walkthrough](docs-site/en/docs/architecture.md) · [Code Map](docs-site/en/docs/code-map.md) | [One Real Run](repo-docs/walkthroughs/one-real-run.md) · [Code Map](repo-docs/code-map.md) |
 | Migration history & source audit | [Changelog & Migration](docs-site/en/docs/changelog.md) | [Change Log](repo-docs/change-log.md) · [Source Evidence](repo-docs/references/source-evidence.md) · [Quality Review](repo-docs/references/quality-review.md) |
 

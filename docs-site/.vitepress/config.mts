@@ -30,10 +30,10 @@ export default defineConfig({
         siteTitle: '代码防泄漏钩子',
         nav: [
           { text: '首页', link: '/' },
-          { text: '起步与配置部署', link: '/docs/' },
-          { text: '接口与扩展契约', link: '/docs/contracts' },
-          { text: '原理与源码导览', link: '/docs/architecture' },
-          { text: 'GitHub', link: 'https://github.com/CyberNova2333/claude-code-antileak-hooks' },
+          { text: '起步与部署', link: '/docs/' },
+          { text: '规则与契约', link: '/docs/contracts' },
+          { text: '架构导览', link: '/docs/architecture' },
+          { text: 'API 与组件', link: '/api-reference/' },
         ],
         sidebar: [
           {
@@ -47,6 +47,7 @@ export default defineConfig({
             text: '接口与扩展契约',
             items: [
               { text: '钩子协议、R1–R7 规则与扩展 FAQ', link: '/docs/contracts' },
+              { text: 'API 与组件参考（Apifox 视图）', link: '/api-reference/' },
             ],
           },
           {
@@ -74,8 +75,8 @@ export default defineConfig({
           { text: 'Home', link: '/en/' },
           { text: 'Setup & Config', link: '/en/docs/' },
           { text: 'Contracts & Rules', link: '/en/docs/contracts' },
-          { text: 'Architecture & Internals', link: '/en/docs/architecture' },
-          { text: 'GitHub', link: 'https://github.com/CyberNova2333/claude-code-antileak-hooks' },
+          { text: 'Architecture', link: '/en/docs/architecture' },
+          { text: 'API & Components', link: '/en/api-reference/' },
         ],
         sidebar: [
           {
@@ -89,6 +90,7 @@ export default defineConfig({
             text: 'Contracts & Extensions',
             items: [
               { text: 'Hook Protocols, R1–R7 & Extension FAQ', link: '/en/docs/contracts' },
+              { text: 'API & Component Reference', link: '/en/api-reference/' },
             ],
           },
           {
@@ -107,5 +109,6 @@ export default defineConfig({
   },
   themeConfig: {
     search: { provider: 'local' },
+    socialLinks: [{ icon: 'github', link: 'https://github.com/CyberNova2333/claude-code-antileak-hooks' }],
   },
 })

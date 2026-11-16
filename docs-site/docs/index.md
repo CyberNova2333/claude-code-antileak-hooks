@@ -7,6 +7,7 @@
 - **它做什么**：在 Claude Code 工具调用前离线拦截违规文本写入（`Write` / `Edit` / `NotebookEdit`）、高危读取（`Bash` 与 `Read` / `Grep`）、绕过标志（`--no-verify`、`--no-gpg-sign`）及 Agent 分支推送；在 Git `pre-commit`、`pre-merge-commit`、`commit-msg` 与 `pre-push` 阶段强制检查私有仓名、业务标识正则、凭据格式、非提供商作者与非通用 SSH 提交签名。
 - **它不做什么**：不替代托管平台的受保护分支规则集或强推拦截（`R5` 明确把主分支保护留给托管平台）；不覆盖只返回文件名不读取正文的 `Glob` 工具；当本机拥有最高系统权限时，提醒级拦截不能抵御刻意绕过，真正的强防线是 Git 推送前复查与远端权限隔离。
 - **两套钩子严格隔离**：仓库内的 `hooks/` + `hooks/git/` + `policy/` 是可分发部署的防泄漏产品；而 `tools/repo_maintenance_guard.py` 与 `tools/repo_maintenance_hooks/` 仅用于克隆本仓库自身的离线提交卫生与格式检查，请勿混用。
+- **交互式接口参考**：各 Hook 包装脚本、`policy/check.py`、`refresh-private.py`、`bootstrap.sh`、`doctor.py` 与 `scan-repo.py` 的参数约束与标准调用示例集中汇总在 [API 与组件参考](/api-reference/)。
 
 ## 运行前提依赖
 

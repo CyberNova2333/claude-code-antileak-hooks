@@ -10,14 +10,14 @@ hero:
       text: Setup & Configuration
       link: /en/docs/
     - theme: alt
+      text: API & Components
+      link: /en/api-reference/
+    - theme: alt
       text: Contracts & Rules
       link: /en/docs/contracts
     - theme: alt
       text: Architecture & Internals
       link: /en/docs/architecture
-    - theme: alt
-      text: GitHub Repo
-      link: https://github.com/CyberNova2333/claude-code-antileak-hooks
 
 features:
   - title: PreToolUse + Git Defense in Depth
@@ -27,6 +27,18 @@ features:
   - title: Fail-Closed & Redacted Verdicts
     details: The policy engine emits pass, violation, or error; wrappers never emit allow (preserving interactive permission prompts) and mask secrets to the first 8 characters.
 ---
+
+::: info Delivered Capabilities (How Far It Goes)
+- Intercepts unsafe file writes, credential reads, and guard tampering offline via `6` `PreToolUse` wrappers (passing calls exit `0` silently without emitting `permissionDecision: "allow"`), paired with `SessionStart` private list syncing.
+- Enforces `R1–R7`, `6h` TTL caching, direct SSH signature verification (`ssh-keygen -Y check-novalidate`), and `git ls-remote`-anchored `known_content` resigning exemptions across 4 `--net` Git hooks.
+- Inspect every wrapper payload, `policy/check.py` flag, sync script, and `doctor.py`/`scan-repo.py` exit contract in [API & Components](/en/api-reference/).
+:::
+
+::: warning Explicit Non-Goals & Hard Boundaries
+- **Does not replace remote branch protections**: `R5` blocks pushes to `15` agent branch prefixes (`claude/`, `codex/`, etc.), while protected branches and force-push restrictions belong to GitHub rulesets / CNB branch settings.
+- **Intentionally excludes `Glob` & privileged local bypasses**: `forbid-read-path.sh` guards content-reading `Read` / `Grep` calls, and local shell hooks remain bypassable by a privileged root user; remote permissions and pre-push checks form the strong boundary.
+- **Cannot run directly from a raw git clone**: Source scripts embed `/root/.claude/...` templates that `policy/bootstrap.sh` must rewrite into `$GUARD`; keep product hooks strictly separate from contributor `tools/repo_maintenance_guard.py`.
+:::
 
 ## Interactive Architecture Diagram
 
