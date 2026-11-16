@@ -15,17 +15,12 @@ Git Lifecycle (pre-commit / pre-merge-commit / commit-msg / pre-push)
               └─ violation / error ─────────────────▶ exit 1 + masked diagnostics
 ```
 
-<div class="archify-diagram-card" style="margin: 1.5rem 0; border: 1px solid var(--vp-c-border); border-radius: 12px; overflow: hidden; background: var(--vp-c-bg-soft); box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; background: var(--vp-c-bg-elv); border-bottom: 1px solid var(--vp-c-border); font-size: 13px;">
-    <span style="font-weight: 600; color: var(--vp-c-text-1); display: flex; align-items: center; gap: 8px;">
-      <span>📐</span> Claude Code Antileak Hooks Workflow (Interactive Archify diagram; pan / zoom / inspect)
-    </span>
-    <a href="/diagrams/antileak-workflow.html" target="_blank" rel="noreferrer" style="font-size: 12px; color: var(--vp-c-brand-1); text-decoration: none; font-weight: 500;">
-      Open Fullscreen ↗
-    </a>
-  </div>
-  <iframe src="/diagrams/antileak-workflow.html" width="100%" height="520px" frameborder="0" style="display: block; border: none;" allowfullscreen loading="lazy"></iframe>
-</div>
+<DiagramFrame
+  src="/diagrams/antileak-workflow.html"
+  title="Claude Code Antileak Hooks Workflow (Interactive Archify diagram; pan / zoom / inspect)"
+  aspect="997 / 652"
+  new-tab-label="Open Fullscreen ↗"
+/>
 
 ## One Real Run: Write Tool Interception
 
