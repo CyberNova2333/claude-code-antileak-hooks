@@ -1,6 +1,6 @@
 # Claude Code Antileak Hooks
 
-[简体中文](README.md) · [English](README.en.md) · [在线文档站](https://cybernova2333.github.io/claude-code-antileak-hooks/) · [API 与组件参考](docs-site/api-reference/index.md) · License: `AGPL-3.0-only`
+[简体中文](README.md) · [English](README.en.md) · [在线文档站](https://claude-code-antileak-hooks.cbnv.me/) · [API 与组件参考](docs-site/api-reference/index.md) · License: `AGPL-3.0-only`
 
 面向 Claude Code 会话与 Git 工作流的双层防泄漏护栏套件：在 Agent 工具调用前离线拦截违规写入与敏感文件读取，并在 Git 提交、合并和推送边界强制核验私有名单（R1）、模型与会话标记（R2）、作者署名（R3）、内部业务正则（R4）、Agent 分支（R5）、非通用 SSH 提交签名（R6）及凭据格式（R7）。
 

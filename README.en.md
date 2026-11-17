@@ -1,6 +1,6 @@
 # Claude Code Antileak Hooks
 
-[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://cybernova2333.github.io/claude-code-antileak-hooks/en/) · [API & Component Reference](docs-site/en/api-reference/index.md) · License: `AGPL-3.0-only`
+[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://claude-code-antileak-hooks.cbnv.me/en/) · [API & Component Reference](docs-site/en/api-reference/index.md) · License: `AGPL-3.0-only`
 
 A two-layer leakage-prevention guardrail for Claude Code sessions and Git workflows: intercepts risky writes and credential reads offline before tool execution, then enforces private repo checks (`R1`), model/session regexes (`R2`), authorship (`R3`), private patterns (`R4`), agent branch blocking (`R5`), non-generic SSH commit signatures (`R6`), and redacted secret patterns (`R7`) at Git boundaries.
 
