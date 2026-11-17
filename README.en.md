@@ -6,7 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="README.md">简体中文</a> · <strong>English</strong> · <a href="https://claude-code-antileak-hooks.cbnv.me/en/">Documentation Site</a> · <a href="docs-site/en/api-reference/index.md">API &amp; Component Reference</a> · <a href="repo-docs/README.md">Source Guide (ZH)</a>
+  <a href="README.md">简体中文</a> | <strong>English</strong>
+</p>
+
+<p align="center">
+  <a href="https://claude-code-antileak-hooks.cbnv.me/en/">Documentation Site</a> · <a href="docs-site/en/api-reference/index.md">API &amp; Component Reference</a> · <a href="repo-docs/README.md">Source Guide (ZH)</a>
 </p>
 
 A two-layer leakage-prevention guardrail for Claude Code sessions and Git workflows: intercepts risky writes and credential reads offline before tool execution, then enforces private repo checks (`R1`), model/session regexes (`R2`), authorship (`R3`), private patterns (`R4`), agent branch blocking (`R5`), non-generic SSH commit signatures (`R6`), and redacted secret patterns (`R7`) at Git boundaries.
