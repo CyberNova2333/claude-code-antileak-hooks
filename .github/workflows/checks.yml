@@ -1,0 +1,31 @@
+name: 检查
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: 策略引擎与钩子脚本检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python 语法校验
+        run: python3 -B -c "import ast, pathlib, sys; [ast.parse(pathlib.Path(f).read_text(encoding='utf-8'), f) for f in sys.argv[1:]]" policy/check.py policy/doctor.py policy/install-settings.py policy/build-secure-token.py hooks/refresh-private.py hooks/resolve-private.py hooks/scan-repo.py tools/repo_maintenance_guard.py
+      - name: Shell 脚本语法校验
+        run: bash -n policy/bootstrap.sh hooks/forbid-commit.sh hooks/forbid-content.sh hooks/forbid-push.sh hooks/forbid-read-path.sh hooks/forbid-read-secret.sh hooks/forbid-tamper.sh
