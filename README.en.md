@@ -1,6 +1,13 @@
-# Claude Code Antileak Hooks
+<h1 align="center">Claude Code Antileak Hooks</h1>
 
-[简体中文](README.md) · [English](README.en.md) · [Documentation Site](https://claude-code-antileak-hooks.cbnv.me/en/) · [API & Component Reference](docs-site/en/api-reference/index.md) · License: `AGPL-3.0-only`
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg" alt="License: AGPL-3.0-only" /></a>
+  <a href="#capability-scope--explicit-non-goals"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB.svg" alt="Python 3.10+" /></a>
+</p>
+
+<p align="center">
+  <a href="README.md">简体中文</a> · <strong>English</strong> · <a href="https://claude-code-antileak-hooks.cbnv.me/en/">Documentation Site</a> · <a href="docs-site/en/api-reference/index.md">API &amp; Component Reference</a> · <a href="repo-docs/README.md">Source Guide (ZH)</a>
+</p>
 
 A two-layer leakage-prevention guardrail for Claude Code sessions and Git workflows: intercepts risky writes and credential reads offline before tool execution, then enforces private repo checks (`R1`), model/session regexes (`R2`), authorship (`R3`), private patterns (`R4`), agent branch blocking (`R5`), non-generic SSH commit signatures (`R6`), and redacted secret patterns (`R7`) at Git boundaries.
 
