@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 # forbid-tamper.sh — PreToolUse hook for Bash（rev4 新增，可选）。拦 Agent "顺手修掉护栏" 的典型犯蠢动作:
 # 改 core.hooksPath / disableAllHooks、删改护栏目录、给 settings.json 动手脚。仍是提醒级(Agent 为 root)。
 set -uo pipefail

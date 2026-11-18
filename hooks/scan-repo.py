@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 # scan-repo.py <repo-path> [--scan-current] [--scan-history]
 #   默认/--scan-current: HEAD 当前树文本文件 + 全历史提交消息。
 #   --scan-history: 每个历史提交的所有树文本文件(重量级,仅在确需查"历史上曾出现违规"时显式用)。

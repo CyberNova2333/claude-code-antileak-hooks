@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 # _lib.sh — 四个 PreToolUse hook 共用的小函数。被 source，不单独执行。
 # 语义(对齐 Claude Code hooks 文档):
 #   * 放行 = "不表态": exit 0 且不输出。旧版输出 permissionDecision=allow，等于给 Bash/Write/Edit 全部跳过权限确认。

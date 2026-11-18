@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 # bootstrap.sh —— 护栏铺设脚本(rev4)。两种用法：
 #   A) Anthropic 云端 → Environment → Setup Script：把本文件整段粘进去，改好下面的 PKG_URL_DEFAULT。
 #      (Setup Script 以 root、在仓库根目录运行；每个环境缓存只跑一次；环境变量不一定进得来，所以 URL 直接写死)

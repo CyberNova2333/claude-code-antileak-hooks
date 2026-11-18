@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and LICENSE-ADDITIONAL_TERMS-zh-CN.md; ref: LICENSE-ADDITIONAL_TERMS-en.md).
 # build-secure-token.py — 读取用户填好的 token-helper.cpp,把每个 token 用随机会话密钥
 # 做 XOR 流式加密,产出「只有密文」的新 cpp 交给交叉 g++ 编译。全程不打印任何 token 值。
 # 用法: python3 build-secure-token.py <填好token的cpp> <输出cpp> [--- 其余参数给 C]
