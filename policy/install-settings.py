@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # install-settings.py [target-settings.json] [--exclude-untracked]
 #   幂等地把护栏 hooks + attribution.sessionUrl=false 合并进一个 settings.json：
 #   * 不给路径 => ~/.claude/settings.json(本机 CLI 用户级)

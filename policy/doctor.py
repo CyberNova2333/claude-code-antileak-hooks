@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # doctor.py — 一键自检：护栏是否装好/可用。输出 [PASS]/[FAIL]/[WARN] 各项 + Overall。
 # rev4: 路径从本文件位置推导(bootstrap 搬家后仍可用); 检查 token-helper / 私有种子 / read-secret & tamper hooks /
 #       gpg.ssh.allowedSignersFile(没有它 git 把 SSH 签名当成未签名) / 仓库级 core.hooksPath 覆盖 / 缓存来源。

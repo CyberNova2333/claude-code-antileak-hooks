@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # forbid-commit.sh — PreToolUse hook for Bash，命中 `git … commit`（快速预防层）。
 # 权威的 msg/作者/签名检查在 git 钩子；这里: 作者邮箱 + 命令串扫描 + 拦绕过护栏的开关。
 # rev4: 放行不输出 allow; 拦 --no-verify/-n/--no-gpg-sign/-c core.hooksPath=/-c commit.gpgsign=false/--author=…noreply。

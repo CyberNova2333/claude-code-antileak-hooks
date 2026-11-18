@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # resolve-private.py — R1 补充：对"缓存里没有、但长得像仓库名(xxx-xxx)"的裸名做单名可见性查询。
 #   用法: resolve-private.py <name>...      name = 裸名(如 foo-bar) 或 owner/repo
 #   输出: 一行 JSON {name: {"status": private|public|absent|error, "owner": "..."}}；总是 exit 0，结果看 status。

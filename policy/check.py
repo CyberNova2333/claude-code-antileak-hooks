@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # check.py — 单一 policy engine。Claude hooks 与 Git hooks 都只调用它。
 #   check.py content [file] [--net]        (无 file 读 stdin)
 #   check.py commit  [msgfile] [--net]

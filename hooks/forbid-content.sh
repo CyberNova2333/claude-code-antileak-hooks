@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # forbid-content.sh — PreToolUse hook for Write|Edit|NotebookEdit。委托单一 policy engine。
 # rev4: 放行不再输出 allow(不跳过权限确认); 拦截 exit 2; 覆盖 NotebookEdit(new_source); 输入解析失败按拦截;
 #       取消 rev3 对护栏目录/settings.json/审查目录的写入豁免：护栏文件和普通文件一样扫(含规则词的 README 也会被拦，按决定)。

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # 消息卫生: 会话链接/型号档位/私有仓名/TOKEN/域名 -> 中性化。用法: git filter-repo --message-callback "$(cat msgcb-hygiene.py)"
 # rev4: 私有仓名→中性名 的映射不再内嵌在本文件(本文件随包分发)，改读本机 sanitize-map.json(与私有种子放一起，不分发):
 #   {"magireco\\.moe": "wiki-source", "<私有仓名>": "<中性名>", ...}   # key 是正则(re.I)，按文件顺序依次替换

@@ -101,3 +101,5 @@ python3 "$HOME/.claude/guardrails/policy/doctor.py"
 - **开源协议**：本项目基于 [GNU Affero General Public License v3.0](LICENSE)（`AGPL-3.0-only`）开源发布，是独立维护的开源防泄漏工具链，与 Claude Code 官方不构成隶属或背书关系。
 - **安全与贡献规范**：提交变更前请先阅读 [安全说明](SECURITY.md)、[贡献指南](CONTRIBUTING.md) 与 [协作约定](AGENTS.md)（涉及功能或文档站入口调整时需同步核对 `meta.json`）；切勿将本机 `private-seed.json`、`sanitize-map.json`、任何访问令牌或编译后的 `token-helper` 提交至版本控制仓库。
 - **独立社区工具免责**：按原样提供，请配合托管平台受保护分支与独立凭证管理使用。
+
+- **附加条款与资产规则**：本项目依据 GNU AGPLv3 第 7 条适用 [`ADDITIONAL_TERMS.zh-CN.md`](ADDITIONAL_TERMS.zh-CN.md)（英文参考译文：[`ADDITIONAL_TERMS.en.md`](ADDITIONAL_TERMS.en.md)，以简体中文完整版正文为准），对来源陈述、修改标识、禁止冒充、扩展模块有条件附加许可及项目标识边界作出补充说明；独立美术、字体与图标许可清单见 [`ASSET_LICENSES.md`](ASSET_LICENSES.md)。第 9.5–9.6 款的附加许可豁免仅对已取得相应版权持有人有效授权的适用材料生效，未取得该等授权的第三方或上游材料仍受其原有有效许可约束。

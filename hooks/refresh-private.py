@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # refresh-private.py — 重建 private-repos.json：对**所有所有者**做一次私有仓并集。
 #
 # 来源(并集)。CNB 平台是主来源；GitHub(2、3)是可选来源，只在仍有私有仓托管在 GitHub 时才需要配置:

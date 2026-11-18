@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# This file is part of Claude Code Antileak Hooks and is licensed under GNU AGPLv3 with Additional Terms (see LICENSE and ADDITIONAL_TERMS.zh-CN.md; ref: ADDITIONAL_TERMS.en.md).
 # forbid-read-secret.sh — PreToolUse hook for Bash。禁止 Agent 主动去读 Token / 把 Token 打到会话里。
 # 这是提醒级护栏(Agent 是 root，任何正则都能绕)，目标是拦"犯蠢"，不是拦恶意。
 # rev4: 去掉裸词 token / 裸 .env 的超宽匹配(grep -rn access_token src/ 之类日常命令全被拦);
