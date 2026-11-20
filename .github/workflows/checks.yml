@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      check_scope:
+        description: '检查范围（all 全部 / python AST 校验 / shell bash -n 校验）'
+        required: false
+        type: choice
+        default: 'all'
+        options:
+          - 'all'
+          - 'python'
+          - 'shell'
 
 permissions:
   contents: read
@@ -20,12 +30,17 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: 配置 Python
-        uses: actions/setup-python@v5
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.check_scope == 'all' || inputs.check_scope == 'python' }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       - name: Python 语法校验
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.check_scope == 'all' || inputs.check_scope == 'python' }}
         run: python3 -B -c "import ast, pathlib, sys; [ast.parse(pathlib.Path(f).read_text(encoding='utf-8'), f) for f in sys.argv[1:]]" policy/check.py policy/doctor.py policy/install-settings.py policy/build-secure-token.py hooks/refresh-private.py hooks/resolve-private.py hooks/scan-repo.py tools/repo_maintenance_guard.py
       - name: Shell 脚本语法校验
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.check_scope == 'all' || inputs.check_scope == 'shell' }}
         run: bash -n policy/bootstrap.sh hooks/forbid-commit.sh hooks/forbid-content.sh hooks/forbid-push.sh hooks/forbid-read-path.sh hooks/forbid-read-secret.sh hooks/forbid-tamper.sh
